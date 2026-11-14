@@ -1,0 +1,103 @@
+const ru = {
+  title: 'Arrow Cats',
+  play: 'Играть · уровень {n}',
+  daily: 'Ежедневный пазл',
+  dailyDone: 'Пазл дня пройден ✓',
+  cafe: 'Кафе',
+  collection: 'Коллекция',
+  level: 'Уровень {n}',
+  hardLevel: 'Сложный уровень {n}',
+  dailyTitle: 'Пазл дня #{n}',
+  hint: 'Подсказка',
+  feed: 'Корм',
+  pickCat: 'Выбери кота, который уйдет к миске',
+  noFish: 'Не хватает рыбок',
+  combo: 'Комбо ×{n}! +{f} 🐟',
+  winTitle: 'Все коты спасены!',
+  winFish: '+{n} 🐟',
+  newBreed: 'Новая порода: {name}',
+  next: 'Дальше',
+  menu: 'Меню',
+  loseTitle: 'Сердца закончились',
+  continueHeart: '+1 ❤ за {n} 🐟',
+  retry: 'Заново',
+  share: 'Поделиться',
+  copied: 'Результат скопирован',
+  dailyResult: 'Время {t} · сердец {h}',
+  streak: 'Серия дней: {n}',
+  streakBonus: 'Бонус за серию: +{n} 🐟',
+  loginReward: 'Награда за вход: +{n} 🐟 (день {d})',
+  room: 'Комната {n}',
+  roomLocked: 'Откроется, когда обставишь комнату 1',
+  buy: '{n} 🐟',
+  chooseVariant: 'Выбери вариант',
+  collectionProgress: 'Собрано {a} из {b}',
+  unknown: '???',
+  back: '‹ Назад',
+  rare: 'редкий',
+  sound: 'Звук',
+  catsInCafe: 'Котов в кафе: {n}',
+  breed_ginger: 'Рыжий', breed_gray: 'Серый', breed_black: 'Черный', breed_white: 'Белый',
+  breed_calico: 'Трехцветный', breed_siamese: 'Сиамский', breed_british: 'Британец', breed_tabby: 'Полосатый',
+  breed_mainecoon: 'Мейн-кун', breed_sphynx: 'Сфинкс', breed_bengal: 'Бенгал', breed_golden: 'Золотой',
+  slot_window: 'Окно', slot_lamp: 'Лампа', slot_post: 'Когтеточка', slot_sofa: 'Диван', slot_counter: 'Стойка',
+};
+
+type Dict = typeof ru;
+
+const en: Dict = {
+  title: 'Arrow Cats',
+  play: 'Play · level {n}',
+  daily: 'Daily puzzle',
+  dailyDone: 'Daily solved ✓',
+  cafe: 'Café',
+  collection: 'Collection',
+  level: 'Level {n}',
+  hardLevel: 'Hard level {n}',
+  dailyTitle: 'Daily #{n}',
+  hint: 'Hint',
+  feed: 'Treat',
+  pickCat: 'Pick a cat to lure to the bowl',
+  noFish: 'Not enough fish',
+  combo: 'Combo ×{n}! +{f} 🐟',
+  winTitle: 'All cats are free!',
+  winFish: '+{n} 🐟',
+  newBreed: 'New breed: {name}',
+  next: 'Next',
+  menu: 'Menu',
+  loseTitle: 'Out of hearts',
+  continueHeart: '+1 ❤ for {n} 🐟',
+  retry: 'Retry',
+  share: 'Share',
+  copied: 'Result copied',
+  dailyResult: 'Time {t} · hearts {h}',
+  streak: 'Day streak: {n}',
+  streakBonus: 'Streak bonus: +{n} 🐟',
+  loginReward: 'Daily reward: +{n} 🐟 (day {d})',
+  room: 'Room {n}',
+  roomLocked: 'Unlocks when room 1 is furnished',
+  buy: '{n} 🐟',
+  chooseVariant: 'Choose a style',
+  collectionProgress: 'Collected {a} of {b}',
+  unknown: '???',
+  back: '‹ Back',
+  rare: 'rare',
+  sound: 'Sound',
+  catsInCafe: 'Cats in café: {n}',
+  breed_ginger: 'Ginger', breed_gray: 'Gray', breed_black: 'Black', breed_white: 'White',
+  breed_calico: 'Calico', breed_siamese: 'Siamese', breed_british: 'British', breed_tabby: 'Tabby',
+  breed_mainecoon: 'Maine Coon', breed_sphynx: 'Sphynx', breed_bengal: 'Bengal', breed_golden: 'Golden',
+  slot_window: 'Window', slot_lamp: 'Lamp', slot_post: 'Scratcher', slot_sofa: 'Sofa', slot_counter: 'Counter',
+};
+
+const dicts: Record<string, Dict> = { ru, en };
+let cur: Dict = en;
+
+export function setLang(code: string) {
+  cur = dicts[code] ?? en;
+}
+
+export function t(key: keyof Dict | string, vars: Record<string, string | number> = {}): string {
+  const s = (cur as Record<string, string>)[key] ?? (en as Record<string, string>)[key] ?? key;
+  return s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+}
