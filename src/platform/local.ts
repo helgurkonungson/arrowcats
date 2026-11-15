@@ -1,6 +1,6 @@
 import type { IPlatform } from './IPlatform';
 
-const KEY = 'arrowcats.save';
+const KEY = 'kittangle.save';
 
 /** Local/dev adapter: localStorage saves, no ads, no purchases. */
 export class LocalPlatform implements IPlatform {

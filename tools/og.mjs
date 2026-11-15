@@ -9,7 +9,7 @@ const exe = process.argv[3] ?? (process.platform === 'darwin'
   ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : '/usr/bin/google-chrome');
 const b = await chromium.launch({ executablePath: exe });
 const p = await b.newPage({ viewport: { width: 720, height: 1280 } });
-await p.addInitScript(() => localStorage.setItem('arrowcats.save', JSON.stringify({ introSeen: true, level: 22, calendar: { day: 0, last: new Date().toISOString().slice(0, 10) } })));
+await p.addInitScript(() => localStorage.setItem('kittangle.save', JSON.stringify({ introSeen: true, level: 22, calendar: { day: 0, last: new Date().toISOString().slice(0, 10) } })));
 await p.goto(`${base}/?debug`);
 await p.waitForTimeout(1500);
 await p.mouse.click(360, 665); // Play
