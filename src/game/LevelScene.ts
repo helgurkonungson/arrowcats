@@ -12,6 +12,7 @@ import { t } from '../i18n';
 import { drawCat, Mood } from './drawCat';
 import { art, has, HEAD_MOOD } from './art';
 import { playMusic, sfx } from './sfx';
+import { betweenLevels, continueOffered, markContinue, rewarded, rewardedReady } from './ads';
 import { addFish, grantPaws, persist, platform, save, unlockBreed } from './state';
 import { PAWS } from '../core/live';
 import { button, C, fishLabel, H, modal, toast, txt, W, backButton } from './ui';
@@ -551,9 +552,32 @@ export class LevelScene extends Phaser.Scene {
       ? [{ label: t('toCafe'), color: C.pink, onClick: () => this.scene.start('Cafe') }]
       : [];
 
+    // rewarded x2 for the fish of this level (opt-in, once); hidden when ads are unavailable
+    let doubled = false;
+    const doubleBtn = d.mode === 'level' && total > 0 && rewardedReady()
+      ? [{
+        label: t('adDouble', { n: total }), color: C.gold, onClick: async () => {
+          if (doubled) return;
+          doubled = true;
+          if (await rewarded(this, 'win_double')) {
+            addFish(total);
+            sfx.coin();
+            toast(this, t('winFish', { n: total }));
+          }
+        },
+      }]
+      : [];
+    let leaving = false;
+    const next = async () => {
+      if (leaving || d.mode !== 'level') return;
+      leaving = true;
+      await betweenLevels(d.n);
+      this.scene.restart({ mode: 'level', n: d.n + 1 });
+    };
     const btns = d.mode === 'level'
       ? [
-        { label: t('next'), color: C.green, onClick: () => this.scene.restart({ mode: 'level', n: d.n + 1 }) },
+        { label: t('next'), color: C.green, onClick: () => void next() },
+        ...doubleBtn,
         ...cafeBtn,
         { label: t('menu'), color: C.gray, onClick: () => this.scene.start('Menu') },
       ]
@@ -595,18 +619,31 @@ export class LevelScene extends Phaser.Scene {
         disabled: this.wallet() < COST.heart,
         onClick: () => {
           if (!this.spend(COST.heart)) return toast(this, t('noFish'));
-          this.hearts = 1;
-          this.updateHearts();
-          this.ended = false;
-          close();
           // cats that finished leaving while the modal was open may have emptied the board
-          if (this.views.size === 0) return this.win();
-          platform.gameplayStart();
+          revive();
         },
       },
+      // rewarded continue: an alternative to fish, offered at most once per 3 minutes
+      ...(continueOffered()
+        ? [{
+          label: t('adContinue'), color: C.gold, onClick: async () => {
+            markContinue();
+            if (!(await rewarded(this, 'continue'))) return;
+            revive();
+          },
+        }]
+        : []),
       { label: t('retry'), color: C.green, onClick: () => this.scene.restart(this.d) },
       { label: t('menu'), color: C.gray, onClick: () => this.scene.start('Menu') },
     ]);
+    const revive = () => {
+      this.hearts = 1;
+      this.updateHearts();
+      this.ended = false;
+      close();
+      if (this.views.size === 0) return this.win();
+      platform.gameplayStart();
+    };
   }
 
   private sendShare?: () => Promise<void>;

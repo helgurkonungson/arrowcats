@@ -10,7 +10,10 @@ export interface IPlatform {
   language(): string;
   gameplayStart(): void;
   gameplayStop(): void;
+  /** true when a rewarded ad can be offered now (hide ad buttons otherwise: Basic Launch, adblock, no SDK) */
+  adsReady(): boolean;
   showInterstitial(): Promise<void>;
+  /** resolves true only if the player watched to the end (grant the reward then) */
   showRewarded(): Promise<boolean>;
   setBanner(visible: boolean): void;
   save(data: SaveData): Promise<void>;

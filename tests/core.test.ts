@@ -202,3 +202,29 @@ describe('share', () => {
     expect(parseChallenge({})).toBeNull();
   });
 });
+
+import { AD_RULES, canOfferContinue, interstitialShown, levelDone, newAdState, wantInterstitial } from '../src/core/ads';
+describe('ads', () => {
+  it('interstitial only from level 6, every 3 levels, 90 s apart, not after rewarded, never with No Ads', () => {
+    const s = newAdState();
+    let now = 1_000_000;
+    for (let i = 0; i < 3; i++) levelDone(s);
+    expect(wantInterstitial(s, now, 5, false)).toBe(false);
+    expect(wantInterstitial(s, now, 6, false)).toBe(true);
+    expect(wantInterstitial(s, now, 6, true)).toBe(false);
+    interstitialShown(s, now);
+    for (let i = 0; i < 3; i++) levelDone(s);
+    expect(wantInterstitial(s, now + 60_000, 9, false)).toBe(false);
+    now += AD_RULES.gapMs;
+    s.lastRewarded = now - 10_000;
+    expect(wantInterstitial(s, now, 9, false)).toBe(false);
+    expect(wantInterstitial(s, now + AD_RULES.afterRewardedMs, 9, false)).toBe(true);
+  });
+  it('continue offer cooldown', () => {
+    const s = newAdState();
+    expect(canOfferContinue(s, 0)).toBe(true);
+    s.lastContinue = 0;
+    expect(canOfferContinue(s, 60_000)).toBe(false);
+    expect(canOfferContinue(s, AD_RULES.continueGapMs)).toBe(true);
+  });
+});

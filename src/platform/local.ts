@@ -12,9 +12,16 @@ export class LocalPlatform implements IPlatform {
   }
   gameplayStart() {}
   gameplayStop() {}
-  async showInterstitial() {}
+  // `?ads=mock` fakes ads locally (grey overlay for 1.5 s) to test placements without a portal
+  private mockAds = typeof location !== 'undefined' && new URLSearchParams(location.search).get('ads') === 'mock';
+  adsReady() {
+    return this.mockAds;
+  }
+  async showInterstitial() {
+    if (this.mockAds) await mockAd('Interstitial');
+  }
   async showRewarded() {
-    return false;
+    return this.mockAds ? mockAd('Rewarded') : false;
   }
   setBanner() {}
   async save(data: unknown) {
@@ -57,4 +64,18 @@ export function clearLocalSave() {
   } catch {
     /* ignore */
   }
+}
+
+/** Full-screen stand-in for a video ad (dev only). */
+function mockAd(label: string): Promise<boolean> {
+  return new Promise((res) => {
+    const d = document.createElement('div');
+    d.textContent = `${label} ad (mock)`;
+    d.style.cssText = 'position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:#333c;color:#fff;font:24px sans-serif';
+    document.body.appendChild(d);
+    setTimeout(() => {
+      d.remove();
+      res(true);
+    }, 1500);
+  });
 }

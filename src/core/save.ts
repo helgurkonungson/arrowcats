@@ -38,6 +38,10 @@ export interface SaveData {
   daily: { last: string; streak: number; results: Record<string, DailyResult> };
   login: { last: string; streak: number };
   muted: boolean;
+  /** "No Ads" bought: no interstitials (rewarded stays, it is opt-in) */
+  noAds: boolean;
+  /** owned non-consumable product ids */
+  purchases: string[];
 }
 
 export const SAVE_VERSION = 4;
@@ -68,6 +72,8 @@ export function defaultSave(): SaveData {
     daily: { last: '', streak: 0, results: {} },
     login: { last: '', streak: 0 },
     muted: false,
+    noAds: false,
+    purchases: [],
   };
 }
 

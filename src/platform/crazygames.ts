@@ -6,7 +6,7 @@ type AdCallbacks = { adStarted?: () => void; adFinished?: () => void; adError?: 
 interface CGSdk {
   init(): Promise<void>;
   environment: 'local' | 'crazygames' | 'disabled';
-  ad: { requestAd(type: 'midgame' | 'rewarded', cb: AdCallbacks): void };
+  ad: { requestAd(type: 'midgame' | 'rewarded', cb: AdCallbacks): void; hasAdblock(): Promise<boolean> };
   data: { getItem(k: string): string | null; setItem(k: string, v: string): void };
   game: {
     gameplayStart(): void;
@@ -34,6 +34,8 @@ export class CrazyGamesPlatform extends LocalPlatform {
   private mute: (m: boolean) => void = () => {};
   private settingsMute = false;
   private adMute = false;
+  /** set when the portal says ads are off for this session (Basic Launch, adblock, kids mode, offline) */
+  private adsOff = false;
 
   async init() {
     const s = sdk();
@@ -52,6 +54,11 @@ export class CrazyGamesPlatform extends LocalPlatform {
       this.applyMute();
     });
     this.applyMute();
+    void s.ad.hasAdblock().then((b) => b && (this.adsOff = true)).catch(() => undefined);
+  }
+
+  adsReady() {
+    return this.on && !this.adsOff;
   }
 
   ready() {
@@ -95,7 +102,10 @@ export class CrazyGamesPlatform extends LocalPlatform {
             this.applyMute();
           },
           adFinished: () => end(true),
-          adError: () => end(false),
+          adError: (e) => {
+            if (e?.code === 'adsDisabled' || e?.code === 'adblock') this.adsOff = true;
+            end(false);
+          },
         });
       } catch {
         end(false);

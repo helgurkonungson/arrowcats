@@ -8,6 +8,7 @@ import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { art } from './art';
 import { playMusic, sfx } from './sfx';
+import { rewarded, rewardedReady } from './ads';
 import { addFish, persist, platform, save, unlockBreed } from './state';
 import { button, C, dialog, iconButton, modal, pill, toast, txt, W, backButton, panel } from './ui';
 
@@ -122,12 +123,29 @@ export class CafeScene extends Phaser.Scene {
     button(this, 130, 1065, 210, 70, t('tipsLabel', { n: tips }), () => {
       const n = tipsAvailable(save.cafe, save.tips.since, Date.now());
       if (n <= 0) return toast(this, t('tipsEmpty'), 1000);
-      save.tips.since = Date.now();
-      addFish(n);
-      sfx.tips();
-      platform.track('tips_collect', { n });
-      toast(this, t('tipsCollected', { n }), 1000);
-      this.time.delayedCall(700, () => this.scene.restart({ room: this.room }));
+      const collect = (got: number) => {
+        save.tips.since = Date.now();
+        addFish(got);
+        sfx.tips();
+        platform.track('tips_collect', { n: got });
+        toast(this, t('tipsCollected', { n: got }), 1000);
+        this.time.delayedCall(700, () => this.scene.restart({ room: this.room }));
+      };
+      // GDD: a rewarded ad doubles the tips bank (opt-in; skipped when ads are unavailable)
+      if (!rewardedReady() || n < 10) return collect(n);
+      let busy = false;
+      const close = modal(this, t('tipsTitle', { n }), [t('tipsDoubleText')], [
+        { label: t('tipsTake', { n }), color: C.primary, onClick: () => { if (busy) return; busy = true; close(); collect(n); } },
+        {
+          label: t('adDouble', { n }), color: C.gold, onClick: async () => {
+            if (busy) return;
+            busy = true;
+            const ok = await rewarded(this, 'tips_double');
+            close();
+            collect(ok ? n * 2 : n);
+          },
+        },
+      ]);
     }, { color: C.primary, size: 28, disabled: tips <= 0 });
   }
 
