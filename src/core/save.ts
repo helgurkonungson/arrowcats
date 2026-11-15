@@ -6,7 +6,10 @@ export interface DailyResult {
 }
 
 export interface SaveData {
-  v: 2;
+  v: 3;
+  calendar: { day: number; last: string };
+  /** ms timestamp since tips started accumulating (0 = not started) */
+  tips: { since: number };
   level: number;
   fish: number;
   stars: number;
@@ -27,11 +30,13 @@ export interface SaveData {
   muted: boolean;
 }
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export function defaultSave(): SaveData {
   return {
-    v: 2,
+    v: 3,
+    calendar: { day: 0, last: '' },
+    tips: { since: 0 },
     level: 1,
     fish: 0,
     stars: 0,
@@ -59,8 +64,10 @@ export function migrate(raw: unknown): SaveData {
   return {
     ...base,
     ...s,
-    v: 2,
+    v: 3,
     tasksDone,
+    calendar: { ...base.calendar, ...(s.calendar ?? {}) },
+    tips: { ...base.tips, ...(s.tips ?? {}) },
     daily: { ...base.daily, ...(s.daily ?? {}) },
     login: { ...base.login, ...(s.login ?? {}) },
     cafe,

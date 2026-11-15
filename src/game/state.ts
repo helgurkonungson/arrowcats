@@ -17,6 +17,7 @@ export async function initState() {
   if (q.get('fish')) save.fish = Number(q.get('fish')) || save.fish;
   setLang(q.get('lang') || platform.language());
   setMuted(save.muted);
+  if (!save.tips.since) save.tips.since = Date.now();
 }
 
 export function persist() {

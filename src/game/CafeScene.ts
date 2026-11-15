@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { CAFE_ROOMS, CAFE_SLOTS, CAFE_VARIANTS } from '../core/content';
 import { CHAPTERS, doTask, nextTask, progress } from '../core/meta';
+import { tipsAvailable } from '../core/retention';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
-import { sfx } from './sfx';
-import { persist, platform, save } from './state';
+import { playMusic, sfx } from './sfx';
+import { addFish, persist, platform, save } from './state';
 import { button, C, dialog, modal, toast, txt, W } from './ui';
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -34,6 +35,7 @@ export class CafeScene extends Phaser.Scene {
   }
 
   create() {
+    playMusic('music_cafe');
     const r = this.room;
     const g = this.add.graphics();
     g.fillStyle(WALL[r], 1).fillRect(0, 160, W, 500);
@@ -68,6 +70,17 @@ export class CafeScene extends Phaser.Scene {
 
     this.spawnCats();
     this.drawTaskPanel();
+    const tips = tipsAvailable(save.cafe, save.tips.since, Date.now());
+    button(this, 130, 1065, 210, 70, t('tipsLabel', { n: tips }), () => {
+      const n = tipsAvailable(save.cafe, save.tips.since, Date.now());
+      if (n <= 0) return toast(this, t('tipsEmpty'), 1000);
+      save.tips.since = Date.now();
+      addFish(n);
+      sfx.tips();
+      platform.track('tips_collect', { n });
+      toast(this, t('tipsCollected', { n }), 1000);
+      this.time.delayedCall(700, () => this.scene.restart({ room: this.room }));
+    }, { color: C.primary, size: 28, disabled: tips <= 0 });
   }
 
   private drawTaskPanel() {
@@ -106,7 +119,7 @@ export class CafeScene extends Phaser.Scene {
     const ch = CHAPTERS[res.chapter];
     if (task.kind === 'decor') save.cafe[ch.room][task.slot!] = 0;
     persist();
-    sfx.coin();
+    sfx.task();
     platform.track('cafe_task', { id: task.id });
     if (task.kind === 'story') toast(this, `${t('done_story')} ${t('task_' + task.id)}`, 1060);
 
@@ -132,6 +145,7 @@ export class CafeScene extends Phaser.Scene {
       const lines = ch.scenes[res.scene].map((who, i) => ({
         who, name: t('who_' + who), text: t(`story_${ch.key}_${res.scene}_${i}`),
       }));
+      sfx.scene();
       dialog(this, lines, t('tapToContinue'), finish);
     });
   }

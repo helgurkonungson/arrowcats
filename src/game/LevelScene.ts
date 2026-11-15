@@ -10,7 +10,7 @@ import { headDir } from '../core/board';
 import { CHAPTERS, nextTask, progress, starsToScene } from '../core/meta';
 import { t } from '../i18n';
 import { drawCat, Mood } from './drawCat';
-import { sfx } from './sfx';
+import { playMusic, sfx } from './sfx';
 import { addFish, persist, platform, save, unlockBreed } from './state';
 import { button, C, fishLabel, H, modal, toast, txt, W } from './ui';
 
@@ -113,6 +113,7 @@ export class LevelScene extends Phaser.Scene {
     }
     if (new URLSearchParams(location.search).has('debug')) this.exposeDebug();
     this.startTime = this.time.now;
+    playMusic('music_level');
     platform.gameplayStart();
     platform.track('level_start', { id: this.level.id });
   }
@@ -304,6 +305,7 @@ export class LevelScene extends Phaser.Scene {
     const total = steps + len + 1;
     const tr = this.trajectory(cat, total + 1);
     sfx.meow(0.9 + Math.random() * 0.3);
+    sfx.slide();
     const o = { s: 0 };
     this.tweens.add({
       targets: o, s: total, duration: 160 + total * 45, ease: 'Quad.In',
@@ -318,6 +320,7 @@ export class LevelScene extends Phaser.Scene {
     if (this.combo >= 2) {
       gain += this.combo - 1;
       toast(this, t('combo', { n: this.combo, f: this.combo - 1 }), H - 240);
+      sfx.combo(this.combo);
     }
     this.earned += gain;
     this.refreshUi();
@@ -437,6 +440,7 @@ export class LevelScene extends Phaser.Scene {
       if (unlockBreed(b)) lines.push(t('newBreed', { name: t('breed_' + BREEDS[b].key) }));
     }
     save.stars += stars;
+    if (stars) this.time.delayedCall(500, () => sfx.star());
     persist();
     const goal = nextTask(save.tasksDone);
     const need = starsToScene(save.tasksDone, save.stars);

@@ -95,6 +95,35 @@ describe('meta', () => {
   it('migrates v1 cafe purchases into done tasks', () => {
     const s = migrate({ v: 1, cafe: [[0, 1, -1, -1, -1]] });
     expect(s.tasksDone).toEqual(['hall_d0', 'hall_d1']);
-    expect(s.v).toBe(2);
+    expect(s.v).toBe(3);
+  });
+});
+
+import { CALENDAR, claimCalendar, streakState, tipsAvailable, tipsCap } from '../src/core/retention';
+
+describe('retention', () => {
+  it('calendar gives one reward per day and loops after 7', () => {
+    const c = { day: 0, last: '' };
+    expect(claimCalendar(c, '2026-11-15')?.index).toBe(0);
+    expect(claimCalendar(c, '2026-11-15')).toBeNull();
+    for (let d = 16; d <= 21; d++) claimCalendar(c, `2026-11-${d}`);
+    expect(c.day).toBe(0);
+    expect(CALENDAR[6].stars).toBe(2);
+  });
+
+  it('tips grow with comfort and stop at the 8 h cap', () => {
+    const empty = [[-1, -1, -1, -1, -1]];
+    const two = [[0, 1, -1, -1, -1]];
+    const h = 3600000;
+    expect(tipsAvailable(empty, 0, 10 * h)).toBe(0); // not started
+    expect(tipsAvailable(empty, 1, 1 + 3 * h)).toBe(6);
+    expect(tipsAvailable(two, 1, 1 + 3 * h)).toBe(12);
+    expect(tipsAvailable(two, 1, 1 + 30 * h)).toBe(tipsCap(two));
+  });
+
+  it('streak is at risk the day after and lost after that', () => {
+    expect(streakState('2026-11-15', 4, '2026-11-15')).toEqual({ streak: 4, alive: true, atRisk: false });
+    expect(streakState('2026-11-14', 4, '2026-11-15').atRisk).toBe(true);
+    expect(streakState('2026-11-12', 4, '2026-11-15').alive).toBe(false);
   });
 });
