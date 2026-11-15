@@ -5,13 +5,16 @@ import { rewardText } from '../core/retention';
 import { migrate, SaveData } from '../core/save';
 import { setLang, t } from '../i18n';
 import type { IPlatform } from '../platform/IPlatform';
+import { CrazyGamesPlatform } from '../platform/crazygames';
 import { clearLocalSave, LocalPlatform } from '../platform/local';
-import { setMuted } from './sfx';
+import { setForcedMute, setMuted } from './sfx';
 
-export const platform: IPlatform = new LocalPlatform();
+// one build per portal: `vite build --mode crazygames` etc.
+export const platform: IPlatform = import.meta.env.MODE === 'crazygames' ? new CrazyGamesPlatform() : new LocalPlatform();
 export let save: SaveData = migrate(null);
 
 export async function initState() {
+  platform.onMute(setForcedMute);
   await platform.init();
   const q = new URLSearchParams(location.search);
   if (q.has('reset')) clearLocalSave();

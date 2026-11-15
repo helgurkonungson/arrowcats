@@ -7,7 +7,8 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:crazygames": "vite build --mode crazygames && cd dist-crazygames && rm -f ../kittangle-crazygames.zip && zip -qr ../kittangle-crazygames.zip ."
   },
   "repository": {
     "type": "git",

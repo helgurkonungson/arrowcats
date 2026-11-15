@@ -3,7 +3,9 @@
  * procedural fallbacks, so the game always has sound even before files exist.
  */
 let ctx: AudioContext | null = null;
-let muted = false;
+let muted = false; // effective: player toggle or forced by the platform (ads, portal setting)
+let userMuted = false;
+let forcedMuted = false;
 // browsers only allow audio after a user gesture
 let unlocked = false;
 const buffers = new Map<string, AudioBuffer>();
@@ -20,10 +22,29 @@ if (typeof window !== 'undefined')
     if (ctx?.state === 'suspended') void ctx.resume();
   });
 
-export const setMuted = (m: boolean) => {
+function applyMute() {
+  const m = userMuted || forcedMuted;
+  if (m === muted) return;
   muted = m;
-  if (m) stopMusic();
-  else if (musicWanted) playMusic(musicWanted);
+  if (m) {
+    stopMusic();
+    if (ctx?.state === 'running') void ctx.suspend();
+  } else {
+    if (ctx?.state === 'suspended') void ctx.resume();
+    if (musicWanted) playMusic(musicWanted);
+  }
+}
+
+/** Player's sound toggle. */
+export const setMuted = (m: boolean) => {
+  userMuted = m;
+  applyMute();
+};
+
+/** Platform mute (during ads, or a portal "mute audio" setting); wins over the player's toggle. */
+export const setForcedMute = (m: boolean) => {
+  forcedMuted = m;
+  applyMute();
 };
 
 function ac(): AudioContext | null {

@@ -1,10 +1,12 @@
 import type { IPlatform } from './IPlatform';
 
-const KEY = 'kittangle.save';
+export const KEY = 'kittangle.save';
 
 /** Local/dev adapter: localStorage saves, no ads, no purchases. */
 export class LocalPlatform implements IPlatform {
   async init() {}
+  ready() {}
+  onMute(_cb: (muted: boolean) => void) {}
   language() {
     return (navigator.language || 'en').slice(0, 2);
   }

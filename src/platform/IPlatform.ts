@@ -3,6 +3,10 @@ import type { SaveData } from '../core/save';
 /** The only way game code talks to a portal or store. Ads/IAP are stubs in the prototype. */
 export interface IPlatform {
   init(): Promise<void>;
+  /** first screen is shown (portals measure loading time) */
+  ready(): void;
+  /** platform asks to mute/unmute all game audio (ads, portal setting); called by the adapter */
+  onMute(cb: (muted: boolean) => void): void;
   language(): string;
   gameplayStart(): void;
   gameplayStop(): void;

@@ -21,6 +21,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
+    platform.ready();
     this.cameras.main.setBackgroundColor(C.bg);
     playMusic('music_cafe');
     const fish = pill(this, W - 28, 64, 'fish', () => save.fish);
