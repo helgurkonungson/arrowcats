@@ -53,7 +53,7 @@ export class CollectionScene extends Phaser.Scene {
     g.lineStyle(4, C.inkN, 1).strokeRoundedRect(cx - 78, cy - 115, 156, 230, 22);
     if (have) {
       if (!art(this, `portrait_${breed.key}`, cx, cy - 20, 130, 130)) drawCat(this.add.graphics(), [{ x: cx + 25, y: cy - 25 }, { x: cx - 25, y: cy - 25 }], b, 72, 'happy', false, save.equipped[b]);
-      txt(this, cx, cy + 65, t('breed_' + breed.key), 22).setWordWrapWidth(150);
+      txt(this, cx, cy + 65, t('breed_' + breed.key), 22).setWordWrapWidth(150, true);
       const zone = this.add.zone(cx, cy, 156, 230).setInteractive({ useHandCursor: true });
       zone.on('pointerdown', () => this.pickAccessory(b));
     } else {

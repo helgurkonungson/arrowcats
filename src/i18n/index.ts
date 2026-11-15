@@ -254,8 +254,20 @@ const en: Dict = {
   slot_window: 'Window', slot_lamp: 'Lamp', slot_post: 'Scratcher', slot_sofa: 'Sofa', slot_counter: 'Counter',
 };
 
-const dicts: Record<string, Dict> = { ru, en };
-let cur: Dict = en;
+import es from './locales/es.json';
+import pt from './locales/pt.json';
+import de from './locales/de.json';
+import fr from './locales/fr.json';
+import tr from './locales/tr.json';
+import id from './locales/id.json';
+import ja from './locales/ja.json';
+import ko from './locales/ko.json';
+
+/** Missing keys fall back to English. */
+const dicts: Record<string, Partial<Dict>> = { ru, en, es, pt, de, fr, tr, id, ja, ko };
+export const LANGS = Object.keys(dicts);
+export const enDict = en;
+let cur: Partial<Dict> = en;
 
 export function setLang(code: string) {
   cur = dicts[code] ?? en;

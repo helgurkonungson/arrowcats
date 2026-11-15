@@ -13,6 +13,11 @@ npm run build    # production build into dist/
 
 Dev URL params: `?reset` clears the save, `?level=37` jumps to a level, `?fish=999` sets fish, `?lang=en|ru`.
 
+## Assets
+- Art: generate per `../Art/PROMPTS.md`, then `python3 tools/art/process.py ../Art` (needs `pip install pillow rembg`). Output goes to `public/art` + `manifest.json`; missing images fall back to procedural drawing.
+- Sound: generate per `../Sound/SOUNDS.md`, then `tools/audio/process.sh ../Sound/audio` (needs ffmpeg). Output goes to `public/audio`; missing sounds fall back to procedural tones.
+- Level Lab: open `lab.html` (e.g. `npm run dev` then `/lab.html?n=57`).
+
 ## Structure
 - `src/core` pure logic (board, solver, generator, levels, content, save), no Phaser
 - `src/game` Phaser scenes and drawing

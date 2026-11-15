@@ -117,7 +117,7 @@ export class CafeScene extends Phaser.Scene {
     const name = task.kind === 'decor'
       ? t('task_decor', { name: t('slot_' + CAFE_SLOTS[task.slot!]) })
       : t('task_' + task.id);
-    txt(this, 220, 1210, name, 28).setWordWrapWidth(360);
+    txt(this, 220, 1210, name, 28).setWordWrapWidth(360, true);
     button(this, W - 150, 1205, 240, 80, t('doTask', { n: task.cost }), () => this.perform(), {
       color: C.green, size: 28, disabled: save.stars < task.cost,
     });

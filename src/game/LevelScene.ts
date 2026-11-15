@@ -112,7 +112,7 @@ export class LevelScene extends Phaser.Scene {
 
     this.drawHud();
     if (d.mode === 'level' && d.n <= TUTORIAL_COUNT) {
-      txt(this, W / 2, H - 235, t(d.n === 1 ? 'tut1' : 'tut2'), 26).setWordWrapWidth(640);
+      txt(this, W / 2, H - 235, t(d.n === 1 ? 'tut1' : 'tut2'), 26).setWordWrapWidth(640, true);
       this.time.delayedCall(600, () => this.tutorialHint());
     }
     if (new URLSearchParams(location.search).has('debug')) this.exposeDebug();

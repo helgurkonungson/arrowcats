@@ -131,7 +131,7 @@ export function dialog(s: Phaser.Scene, lines: DialogLine[], hint: string, onDon
   const pg = s.add.graphics();
   const name = txt(s, 190, top + 50, '', 34).setOrigin(0, 0.5);
   const body = s.add.text(60, top + 135, '', {
-    fontFamily: FONT, fontSize: '31px', color: C.ink, wordWrap: { width: W - 120 }, lineSpacing: 6,
+    fontFamily: FONT, fontSize: '31px', color: C.ink, wordWrap: { width: W - 120, useAdvancedWrap: true }, lineSpacing: 6,
   });
   const tip = txt(s, W / 2, H - 100, hint, 22, '#9b8a7a');
   const face = s.add.image(105, top + 30, '__DEFAULT').setVisible(false);

@@ -164,3 +164,21 @@ describe('live', () => {
     expect(addPaws(ev, season, '2026-12-01', 5).steps.length).toBe(0); // same week, track already done
   });
 });
+
+import { enDict } from '../src/i18n';
+import * as fs from 'fs';
+
+describe('i18n', () => {
+  it('every locale keeps placeholders and covers the visible keys', () => {
+    const unused = ['title', 'loginReward', 'room', 'buy', 'back', 'rare', 'sound', 'catsInCafe', 'task_story', 'trophyShelf'];
+    const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join();
+    for (const f of fs.readdirSync('src/i18n/locales')) {
+      const d = JSON.parse(fs.readFileSync('src/i18n/locales/' + f, 'utf8')) as Record<string, string>;
+      for (const [k, v] of Object.entries(enDict)) {
+        if (unused.includes(k)) continue;
+        expect(d[k], `${f}: ${k}`).toBeTypeOf('string');
+        expect(ph(d[k]), `${f}: ${k}`).toBe(ph(v));
+      }
+    }
+  });
+});
