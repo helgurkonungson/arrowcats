@@ -9,7 +9,7 @@ import { drawCat } from './drawCat';
 import { art } from './art';
 import { playMusic, sfx } from './sfx';
 import { addFish, persist, platform, save, unlockBreed } from './state';
-import { button, C, dialog, modal, toast, txt, W } from './ui';
+import { button, C, dialog, modal, toast, txt, W, backButton, panel } from './ui';
 
 type Rect = { x: number; y: number; w: number; h: number };
 const SLOT_RECT: Record<(typeof CAFE_SLOTS)[number], Rect> = {
@@ -46,7 +46,7 @@ export class CafeScene extends Phaser.Scene {
     g.lineStyle(6, C.inkN, 1).lineBetween(0, 660, W, 660);
     art(this, `cafe_room${r + 1}`, W / 2, 640, W, 960, true);
 
-    button(this, 70, 70, 90, 80, '‹', () => this.scene.start('Menu'), { color: C.gray, size: 48 });
+    backButton(this, () => this.scene.start('Menu'));
     txt(this, W / 2, 70, t('chapter_' + CHAPTERS[r].key), 34);
     txt(this, W - 30, 70, t('stars', { n: save.stars }), 34).setOrigin(1, 0.5);
     txt(this, W / 2, 128, t('comfort', { n: comfort(save.cafe), r: tipsRate(save.cafe) }), 24);
@@ -97,8 +97,7 @@ export class CafeScene extends Phaser.Scene {
 
   private drawTaskPanel() {
     const g = this.add.graphics();
-    g.fillStyle(C.panel, 1).fillRoundedRect(20, 1125, W - 40, 140, 26);
-    g.lineStyle(4, C.inkN, 1).strokeRoundedRect(20, 1125, W - 40, 140, 26);
+    panel(g, 20, 1122, W - 40, 136, 30);
     const p = progress(save.tasksDone);
     if (p.chapter >= CHAPTERS.length) {
       txt(this, W / 2, 1195, t('allDone'), 28);
@@ -113,7 +112,7 @@ export class CafeScene extends Phaser.Scene {
     }
     const ch = CHAPTERS[p.chapter];
     const task = ch.tasks[p.task];
-    txt(this, W / 2, 1152, t('chapterProgress', { name: t('chapter_' + ch.key), a: p.task, b: ch.tasks.length }), 22, '#9b8a7a');
+    txt(this, W / 2, 1152, t('chapterProgress', { name: t('chapter_' + ch.key), a: p.task, b: ch.tasks.length }), 22, C.muted);
     const name = task.kind === 'decor'
       ? t('task_decor', { name: t('slot_' + CAFE_SLOTS[task.slot!]) })
       : t('task_' + task.id);

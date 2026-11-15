@@ -7,7 +7,7 @@ import { drawCat } from './drawCat';
 import { art } from './art';
 import { sfx } from './sfx';
 import { grant, persist, platform, save } from './state';
-import { button, C, modal, toast, txt, W } from './ui';
+import { button, C, modal, toast, txt, W, backButton, panel } from './ui';
 
 /** Album: 3 sets of 4 breeds with set rewards; tap an owned cat to choose its accessory. */
 export class CollectionScene extends Phaser.Scene {
@@ -16,7 +16,7 @@ export class CollectionScene extends Phaser.Scene {
   }
 
   create() {
-    button(this, 70, 70, 90, 80, '‹', () => this.scene.start('Menu'), { color: C.gray, size: 48 });
+    backButton(this, () => this.scene.start('Menu'));
     txt(this, W / 2, 70, t('collection'), 40);
     txt(this, W / 2, 135, t('collectionProgress', { a: save.breeds.length, b: BREEDS.length }), 28);
 
@@ -36,7 +36,7 @@ export class CollectionScene extends Phaser.Scene {
       } else if (claimed) {
         txt(this, W - 40, top + 20, t('setDone'), 24, '#2f7d32').setOrigin(1, 0.5);
       } else {
-        txt(this, W - 40, top + 20, rewardText(set.reward), 24, '#9b8a7a').setOrigin(1, 0.5);
+        txt(this, W - 40, top + 20, rewardText(set.reward), 24, C.muted).setOrigin(1, 0.5);
       }
       set.breeds.forEach((b, i) => this.card(b, 105 + i * 170, top + 175));
     });
@@ -49,16 +49,15 @@ export class CollectionScene extends Phaser.Scene {
     const breed = BREEDS[b];
     const have = save.breeds.includes(b);
     const g = this.add.graphics();
-    g.fillStyle(breed.rare ? 0xfff1c9 : C.panel, 1).fillRoundedRect(cx - 78, cy - 115, 156, 230, 22);
-    g.lineStyle(4, C.inkN, 1).strokeRoundedRect(cx - 78, cy - 115, 156, 230, 22);
+    panel(g, cx - 78, cy - 115, 156, 222, 22, breed.rare ? 0xfff1c9 : C.panel, breed.rare ? 0xe9c56a : 0xe2c7a4);
     if (have) {
       if (!art(this, `portrait_${breed.key}`, cx, cy - 20, 130, 130)) drawCat(this.add.graphics(), [{ x: cx + 25, y: cy - 25 }, { x: cx - 25, y: cy - 25 }], b, 72, 'happy', false, save.equipped[b]);
       txt(this, cx, cy + 65, t('breed_' + breed.key), 22).setWordWrapWidth(150, true);
       const zone = this.add.zone(cx, cy, 156, 230).setInteractive({ useHandCursor: true });
       zone.on('pointerdown', () => this.pickAccessory(b));
     } else {
-      g.fillStyle(C.gray, 1).fillCircle(cx, cy - 25, 40);
-      txt(this, cx, cy - 25, '?', 44, '#ffffff');
+      g.fillStyle(C.latte, 1).fillCircle(cx, cy - 25, 40);
+      txt(this, cx, cy - 25, '?', 44, '#d9bf9b');
       txt(this, cx, cy + 65, t('unknown'), 22);
     }
     if (breed.rare) txt(this, cx + 55, cy - 92, '★', 28, '#e0a100');

@@ -8,7 +8,8 @@ import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { playMusic, setMuted, sfx } from './sfx';
 import { grant, persist, save } from './state';
-import { button, C, dialog, fishLabel, toast, txt, W, H } from './ui';
+import { DIM, badge, button, C, dialog, iconButton, panel, pill, tile, toast, txt, W, H } from './ui';
+import { icon } from './icons';
 
 export class MenuScene extends Phaser.Scene {
   private introDone: () => void = () => {};
@@ -20,51 +21,66 @@ export class MenuScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(C.bg);
     playMusic('music_cafe');
-    const fish = fishLabel(this, W - 30, 60, () => save.fish);
-    txt(this, W - 30, 112, t('stars', { n: save.stars }), 34).setOrigin(1, 0.5);
+    const fish = pill(this, W - 28, 64, 'fish', () => save.fish);
+    pill(this, W - 228, 64, 'star', () => save.stars, 130);
+    iconButton(this, 64, 64, save.muted ? 'mute' : 'sound', () => {
+      save.muted = !save.muted;
+      setMuted(save.muted);
+      persist();
+      this.scene.restart();
+    });
 
-    txt(this, W / 2, 200, t('title'), 84);
+    // logo (replaced by generated logo art later)
+    const logo = txt(this, W / 2, 215, t('title'), 96, C.ink).setStroke('#fff9f0', 14);
+    logo.setShadow(0, 8, '#e2c7a4', 0, true, false);
+    if (logo.width > W - 60) logo.setScale((W - 60) / logo.width);
+
+    // mascot on a soft floor shadow
+    this.add.ellipse(W / 2, 452, 330, 46, C.inkN, 0.1);
     const g = this.add.graphics();
-    const pts = [[470, 380], [400, 380], [330, 380], [330, 450], [260, 450]].map(([x, y]) => ({ x, y }));
+    const pts = [[470, 380], [400, 380], [330, 380], [330, 440], [260, 440]].map(([x, y]) => ({ x, y }));
     drawCat(g, pts, 0, 90, 'happy');
     this.tweens.add({ targets: g, y: -10, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
 
     const today = utcDate();
     const dailyDone = !!save.daily.results[today];
-    button(this, W / 2, 605, 520, 110, '▶ ' + t('play', { n: save.level }), () =>
-      this.scene.start('Level', { mode: 'level', n: save.level }), { color: C.green, size: 40 });
-    button(this, W / 2, 725, 520, 96, (dailyDone ? '' : '📅 ') + t(dailyDone ? 'dailyDone' : 'daily'), () =>
-      this.scene.start('Level', { mode: 'daily', date: today }), { color: C.blue });
     const task = nextTask(save.tasksDone);
+    if (task) {
+      const p = progress(save.tasksDone);
+      const need = starsToScene(save.tasksDone, save.stars);
+      const chip = txt(this, W / 2, 545, `${t('chapter_' + CHAPTERS[p.chapter].key)} · ${need ? t('toScene', { n: need }) : t('sceneReady')}`, 26, C.muted);
+      const cg = this.add.graphics();
+      cg.fillStyle(C.latte, 1).fillRoundedRect(W / 2 - chip.width / 2 - 24, 545 - 24, chip.width + 48, 48, 24);
+      chip.setDepth(1);
+    }
+    // hero CTA: one big apricot button, gently breathing
+    const play = button(this, W / 2, 665, 560, 132, t('play', { n: save.level }), () =>
+      this.scene.start('Level', { mode: 'level', n: save.level }), { color: C.primary, size: 46, icon: 'play' });
+    this.tweens.add({ targets: play, scale: 1.035, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    button(this, W / 2, 815, 560, 96, t(dailyDone ? 'dailyDone' : 'daily'), () =>
+      this.scene.start('Level', { mode: 'daily', date: today }), { color: C.panel, size: 34, icon: 'daily' });
+
     const tips = tipsAvailable(save.cafe, save.tips.since, Date.now());
     if (updateVisitor(save.visit, save.cafe, save.breeds, Date.now(), Math.random())) this.time.delayedCall(400, () => toast(this, t('visitorArrived'), 470));
     persist();
     const ready = (!!task && save.stars >= task.cost) || tips >= tipsCap(save.cafe) / 2 || save.visit.visitor >= 0;
-    const cafeBtn = button(this, W / 2, 835, 520, 96, '☕ ' + t('cafe') + (ready ? '  ❗' : ''), () => this.scene.start('Cafe'), {
-      color: C.pink,
-    });
-    if (ready) this.tweens.add({ targets: cafeBtn, scale: 1.04, duration: 600, yoyo: true, repeat: -1 });
-    if (task) {
-      const p = progress(save.tasksDone);
-      const need = starsToScene(save.tasksDone, save.stars);
-      txt(this, W / 2, 520, `${t('chapter_' + CHAPTERS[p.chapter].key)} · ${need ? t('toScene', { n: need }) : t('sceneReady')}`, 26);
-    }
-    button(this, W / 2, 945, 520, 96, '🐱 ' + t('collection'), () => this.scene.start('Collection'), {
-      color: C.purple,
-    });
+    // secondary destinations as a row of tiles
     const ev = eventAt(today);
-    button(this, W / 2, 1055, 520, 96, `🐾 ${t('event')} · ${save.event.id === ev.id ? save.event.paws : 0}`, () => this.scene.start('Event'), { color: C.primary });
-    const st = streakState(save.daily.last, save.daily.streak, today);
-    if (st.alive) txt(this, W / 2, 1172, st.atRisk ? t('streakRisk', { n: st.streak }) : t('streakFlame', { n: st.streak }), 26, st.atRisk ? '#d0603a' : C.ink);
-    txt(this, W / 2, 1230, t('tomorrow', { r: rewardText(CALENDAR[save.calendar.day % 7]) }), 24, '#9b8a7a');
+    const tw = 176;
+    const ty = 1000;
+    const cafe = tile(this, W / 2 - tw - 14, ty, tw, 170, 'cafe', t('cafe'), () => this.scene.start('Cafe'));
+    if (ready) badge(this, cafe, tw / 2 - 8, -78);
+    tile(this, W / 2, ty, tw, 170, 'collection', t('collection'), () => this.scene.start('Collection'));
+    const evTile = tile(this, W / 2 + tw + 14, ty, tw, 170, 'paw', `${t('event')}`, () => this.scene.start('Event'));
+    const paws = save.event.id === ev.id ? save.event.paws : 0;
+    if (paws > 0) evTile.add(txt(this, tw / 2 - 18, -70, String(paws), 24, '#ffffff').setStroke(C.ink, 6));
 
-    const sound = button(this, 80, 60, 100, 80, save.muted ? '🔇' : '🔊', () => {
-      save.muted = !save.muted;
-      setMuted(save.muted);
-      persist();
-      this.scene.restart();
-    }, { color: C.gray });
-    sound.setScale(0.9);
+    const st = streakState(save.daily.last, save.daily.streak, today);
+    if (st.alive) {
+      txt(this, W / 2, 1160, st.atRisk ? t('streakRisk', { n: st.streak }) : t('streakFlame', { n: st.streak }), 26, st.atRisk ? '#c9482a' : C.ink);
+    }
+    txt(this, W / 2, 1222, t('tomorrow', { r: rewardText(CALENDAR[save.calendar.day % 7]) }), 24, C.muted);
+    void fish;
 
     // first launch: story intro instead of a stack of popups
     const introNow = !save.introSeen;
@@ -90,24 +106,23 @@ export class MenuScene extends Phaser.Scene {
   /** 7 cells, claimed ones ticked, today's highlighted, tomorrow's reward spelled out. */
   private showCalendar(today: number, onClose: () => void) {
     const c = this.add.container(0, 0).setDepth(100);
-    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.45).setInteractive();
+    const dim = this.add.rectangle(W / 2, H / 2, W, H, DIM, 0.55).setInteractive();
     const g = this.add.graphics();
     const top = H / 2 - 250;
-    g.fillStyle(C.panel, 1).fillRoundedRect(30, top, W - 60, 500, 36);
-    g.lineStyle(5, C.inkN, 1).strokeRoundedRect(30, top, W - 60, 500, 36);
+    panel(g, 30, top, W - 60, 510, 40);
     c.add([dim, g, txt(this, W / 2, top + 60, t('calendarTitle'), 40)]);
     CALENDAR.forEach((r, i) => {
       const x = 72 + i * 96;
       const y = top + 190;
       const cell = this.add.graphics();
-      cell.fillStyle(i === today ? 0xfff07a : i < today ? C.green : C.gray, 1).fillRoundedRect(x - 42, y - 70, 84, 140, 16);
+      cell.fillStyle(i === today ? C.gold : i < today ? 0xd8eccf : C.latte, 1).fillRoundedRect(x - 42, y - 70, 84, 140, 16);
       cell.lineStyle(3, C.inkN, 1).strokeRoundedRect(x - 42, y - 70, 84, 140, 16);
-      c.add([cell, txt(this, x, y - 45, String(i + 1), 24), txt(this, x, y + 5, i === 6 ? '🎁' : r.stars ? '⭐' : r.paws ? '🐾' : '🐟', 36),
+      c.add([cell, txt(this, x, y - 45, String(i + 1), 24), icon(this, i === 6 ? 'gift' : r.stars ? 'star' : r.paws ? 'paw' : 'fish', x, y + 5, 52),
         txt(this, x, y + 48, String(r.fish ?? r.stars ?? r.paws), 22)]);
-      if (i < today) c.add(txt(this, x + 26, y - 52, '✓', 26, '#2f7d32'));
+      if (i < today) c.add(icon(this, 'check', x + 26, y - 50, 34));
     });
     c.add(txt(this, W / 2, top + 320, '+' + rewardText(CALENDAR[today]), 36));
-    c.add(txt(this, W / 2, top + 370, t('tomorrow', { r: rewardText(CALENDAR[(today + 1) % 7]) }), 26, '#9b8a7a'));
-    c.add(button(this, W / 2, top + 440, 300, 80, t('claim'), () => { if (today === 6) sfx.chest(); else sfx.coin(); c.destroy(); onClose(); }, { color: C.green }));
+    c.add(txt(this, W / 2, top + 370, t('tomorrow', { r: rewardText(CALENDAR[(today + 1) % 7]) }), 26, C.muted));
+    c.add(button(this, W / 2, top + 445, 320, 88, t('claim'), () => { if (today === 6) sfx.chest(); else sfx.coin(); c.destroy(); onClose(); }, { color: C.primary, size: 38 }));
   }
 }

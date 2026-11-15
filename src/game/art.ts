@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { bakeIcons } from './icons';
 
 const BASE = `${import.meta.env.BASE_URL}art/`;
 
@@ -13,6 +14,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create() {
+    bakeIcons(this);
     const m = (this.cache.json.get('art_manifest') ?? {}) as Record<string, string>;
     const keys = Object.keys(m);
     if (!keys.length) return this.scene.start('Menu');

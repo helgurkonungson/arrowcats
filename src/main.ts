@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import '@fontsource/nunito/800.css';
+import '@fontsource/nunito/900.css';
 import { CafeScene } from './game/CafeScene';
 import { PreloadScene } from './game/art';
 import { CollectionScene } from './game/CollectionScene';
@@ -8,7 +10,13 @@ import { MenuScene } from './game/MenuScene';
 import { initState } from './game/state';
 import { C, H, W } from './game/ui';
 
-initState().then(() => {
+// Phaser text needs the webfont ready before the first frame (falls back to system fonts offline or for CJK)
+const fonts = Promise.race([
+  Promise.all(['800 32px Nunito', '900 32px Nunito'].map((f) => document.fonts.load(f, 'Aa Яя'))),
+  new Promise((r) => setTimeout(r, 1500)),
+]).catch(() => undefined);
+
+Promise.all([initState(), fonts]).then(() => {
   new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'app',

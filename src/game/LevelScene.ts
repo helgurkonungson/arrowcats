@@ -14,7 +14,8 @@ import { art, has, HEAD_MOOD } from './art';
 import { playMusic, sfx } from './sfx';
 import { addFish, grantPaws, persist, platform, save, unlockBreed } from './state';
 import { PAWS } from '../core/live';
-import { button, C, fishLabel, H, modal, toast, txt, W } from './ui';
+import { button, C, fishLabel, H, modal, toast, txt, W, backButton } from './ui';
+import { icon, iconKey, IconName } from './icons';
 
 export type LevelData = { mode: 'level'; n: number } | { mode: 'daily'; date: string };
 
@@ -48,7 +49,7 @@ export class LevelScene extends Phaser.Scene {
   private rescued: number[] = [];
   private startTime = 0;
   private ended = false;
-  private heartsText!: Phaser.GameObjects.Text;
+  private heartIcons: Phaser.GameObjects.Image[] = [];
   private timerText?: Phaser.GameObjects.Text;
   private fish!: { refresh: () => void };
   private hintBtn!: Phaser.GameObjects.Container;
@@ -77,7 +78,7 @@ export class LevelScene extends Phaser.Scene {
     this.level = d.mode === 'level' ? getLevel(d.n) : getDaily(d.date);
     this.board = new Board(this.level);
     const { w, h } = this.level;
-    this.cameras.main.setBackgroundColor(this.level.hard ? 0xf7e1e6 : C.bg);
+    this.cameras.main.setBackgroundColor(this.level.hard ? 0xf6dfdc : C.bg);
 
     const top = 190;
     const bottom = 210;
@@ -112,7 +113,7 @@ export class LevelScene extends Phaser.Scene {
 
     this.drawHud();
     if (d.mode === 'level' && d.n <= TUTORIAL_COUNT) {
-      txt(this, W / 2, H - 235, t(d.n === 1 ? 'tut1' : 'tut2'), 26).setWordWrapWidth(640, true);
+      this.coach(t(d.n === 1 ? 'tut1' : 'tut2'));
       this.time.delayedCall(600, () => this.tutorialHint());
     }
     if (new URLSearchParams(location.search).has('debug')) this.exposeDebug();
@@ -137,16 +138,27 @@ export class LevelScene extends Phaser.Scene {
     const room = CHAPTERS[Math.min(progress(save.tasksDone).chapter, CHAPTERS.length - 1)].room;
     art(this, room === 0 ? 'bg_board_floor' : 'bg_board_roof', W / 2, H / 2, W, H, true);
     const g = this.add.graphics();
-    g.fillStyle(0xf3e2cc, 1).fillRoundedRect(this.ox - 14, this.oy - 14, this.cs * w + 28, this.cs * h + 28, 26);
-    g.fillStyle(0xe2cdb4, 1);
+    // board: one calm mid-light surface with a soft checker so lanes read at a glance
+    const bx = this.ox - 16;
+    const by = this.oy - 16;
+    const bw = this.cs * w + 32;
+    const bh = this.cs * h + 32;
+    g.fillStyle(C.inkN, 0.12).fillRoundedRect(bx + 4, by + 14, bw, bh, 30);
+    g.fillStyle(0xd9bf9b, 1).fillRoundedRect(bx, by + 8, bw, bh, 30);
+    g.fillStyle(0xeedbbf, 1).fillRoundedRect(bx, by, bw, bh, 30);
+    g.lineStyle(5, C.inkN, 1).strokeRoundedRect(bx, by, bw, bh + 8, 30);
+    const r = Math.max(4, this.cs * 0.12);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const p = this.px({ x, y });
-      g.fillCircle(p.x, p.y, this.cs * 0.06);
+      const s = this.cs - 4;
+      g.fillStyle((x + y) % 2 ? 0xe6cfae : 0xf3e4cc, 1).fillRoundedRect(p.x - s / 2, p.y - s / 2, s, s, r);
     }
     for (const b of this.level.boxes) {
       const p = this.px(b);
       const s = this.cs * 0.84;
-      g.fillStyle(0xc99d6b, 1).fillRoundedRect(p.x - s / 2, p.y - s / 2, s, s, 8);
+      g.fillStyle(C.inkN, 0.16).fillRoundedRect(p.x - s / 2 + 4, p.y - s / 2 + 8, s, s, 8);
+      g.fillStyle(0xa8784c, 1).fillRoundedRect(p.x - s / 2, p.y - s / 2, s, s, 8);
+      g.fillStyle(0xc99d6b, 1).fillRoundedRect(p.x - s / 2, p.y - s / 2, s * 0.9, s * 0.9, 7);
       g.lineStyle(4, C.inkN, 1).strokeRoundedRect(p.x - s / 2, p.y - s / 2, s, s, 8);
       g.lineStyle(3, 0x9c7449, 1).lineBetween(p.x - s / 2, p.y, p.x + s / 2, p.y);
     }
@@ -198,25 +210,35 @@ export class LevelScene extends Phaser.Scene {
 
   private drawHud() {
     const d = this.d;
-    button(this, 70, 70, 90, 80, '‹', () => this.leave(), { color: C.gray, size: 48 });
+    backButton(this, () => this.leave());
     const title = d.mode === 'daily'
       ? t('dailyTitle', { n: dailyNumber(d.date) })
       : t(this.level.hard ? 'hardLevel' : 'level', { n: d.n });
-    const tt = txt(this, W / 2, 55, title, 40);
-    if (tt.width > 400) tt.setScale(400 / tt.width); // keep clear of the back button and fish counter
-    this.heartsText = txt(this, W / 2, 110, '', 40, '#e2556b');
+    const tt = txt(this, W / 2, 52, title, 38);
+    if (tt.width > 330) tt.setScale(330 / tt.width); // keep clear of the back button and fish counter
+    if (this.level.hard) tt.setColor('#c9482a');
+    this.heartIcons = [0, 1, 2].map((i) => icon(this, 'heart', W / 2 + (i - 1) * 56, 112, 52));
     this.updateHearts();
-    this.fish = fishLabel(this, W - 30, 70, () => save.fish + this.earned);
-    if (d.mode === 'daily') this.timerText = txt(this, W - 100, 130, '', 28);
+    this.fish = fishLabel(this, W - 24, 64, () => save.fish + this.earned);
+    if (d.mode === 'daily') {
+      icon(this, 'clock', W - 150, 132, 34);
+      this.timerText = txt(this, W - 128, 133, '', 28).setOrigin(0, 0.5);
+    }
 
-    const by = H - 110;
-    this.hintBtn = button(this, W / 2 - 165, by, 300, 110, `💡 ${t('hint')}\n${COST.hint} 🐟`, () => this.useHint(), {
-      color: C.blue, size: 28,
-    });
-    this.feedBtn = button(this, W / 2 + 165, by, 300, 110, `🍗 ${t('feed')}\n${COST.feed} 🐟`, () => this.useFeed(), {
-      color: C.green, size: 28,
-    });
+    const by = H - 118;
+    this.hintBtn = this.booster(W / 2 - 168, by, 'hint', t('hint'), COST.hint, () => this.useHint());
+    this.feedBtn = this.booster(W / 2 + 168, by, 'feed', t('feed'), COST.feed, () => this.useFeed());
     this.refreshUi();
+  }
+
+  /** Teal booster button with a cream price tag (fish icon + cost) hanging off the bottom edge. */
+  private booster(x: number, y: number, name: IconName, label: string, cost: number, onClick: () => void) {
+    const b = button(this, x, y, 304, 104, label, onClick, { color: C.blue, size: 32, icon: name });
+    const g = this.add.graphics();
+    g.fillStyle(C.inkN, 1).fillRoundedRect(-70, 44, 140, 44, 22);
+    g.fillStyle(C.panel, 1).fillRoundedRect(-67, 47, 134, 38, 19);
+    b.add([g, icon(this, 'fish', -36, 66, 40), txt(this, 14, 67, String(cost), 26)]);
+    return b;
   }
 
   private wallet() {
@@ -238,6 +260,16 @@ export class LevelScene extends Phaser.Scene {
     this.hintBtn.setAlpha(this.wallet() >= COST.hint ? 1 : 0.5);
     this.feedBtn.setAlpha(this.feedArmed ? 0.7 : this.wallet() >= COST.feed ? 1 : 0.5);
     this.feedBtn.setScale(this.feedArmed ? 1.06 : 1);
+  }
+
+  /** Tutorial coach mark: speech bubble above the boosters. */
+  private coach(msg: string) {
+    const tx = txt(this, W / 2, H - 262, msg, 26).setWordWrapWidth(600, true);
+    const b = tx.getBounds();
+    const g = this.add.graphics();
+    g.fillStyle(C.inkN, 1).fillRoundedRect(b.x - 27, b.y - 17, b.width + 54, b.height + 34, 24);
+    g.fillStyle(C.panel, 1).fillRoundedRect(b.x - 24, b.y - 14, b.width + 48, b.height + 28, 21);
+    tx.setDepth(1);
   }
 
   /** Free pulse on a free cat in tutorial levels. */
@@ -265,7 +297,12 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private updateHearts() {
-    this.heartsText.setText('♥'.repeat(this.hearts) + '♡'.repeat(Math.max(0, 3 - this.hearts)));
+    this.heartIcons.forEach((im, i) => {
+      const full = i < this.hearts;
+      const key = iconKey(this, full ? 'heart' : 'heart_empty');
+      if (im.texture.key !== key && !full) this.tweens.add({ targets: im, scale: { from: im.scale * 1.5, to: im.scale }, duration: 250, ease: 'Back.Out' });
+      im.setTexture(key).setDisplaySize(52, 52);
+    });
   }
 
   // ---------- input & mechanics ----------
@@ -512,7 +549,7 @@ export class LevelScene extends Phaser.Scene {
     const close = modal(this, t('loseTitle'), [], [
       {
         label: t('continueHeart', { n: COST.heart }),
-        color: C.pink,
+        color: C.gold,
         disabled: this.wallet() < COST.heart,
         onClick: () => {
           if (!this.spend(COST.heart)) return toast(this, t('noFish'));
