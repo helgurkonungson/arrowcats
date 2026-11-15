@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { CafeScene } from './game/CafeScene';
+import { PreloadScene } from './game/art';
 import { CollectionScene } from './game/CollectionScene';
+import { EventScene } from './game/EventScene';
 import { LevelScene } from './game/LevelScene';
 import { MenuScene } from './game/MenuScene';
 import { initState } from './game/state';
@@ -14,6 +16,6 @@ initState().then(() => {
     height: H,
     backgroundColor: C.bg,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [MenuScene, LevelScene, CafeScene, CollectionScene],
+    scene: [PreloadScene, MenuScene, LevelScene, CafeScene, CollectionScene, EventScene],
   });
 });

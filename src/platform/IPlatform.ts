@@ -14,4 +14,6 @@ export interface IPlatform {
   purchase(sku: string): Promise<boolean>;
   restorePurchases(): Promise<string[]>;
   track(event: string, params?: Record<string, unknown>): void;
+  /** leaderboards where the platform supports them (no-op otherwise) */
+  submitScore(board: string, value: number): void;
 }

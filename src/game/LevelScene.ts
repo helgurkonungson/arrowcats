@@ -10,8 +10,10 @@ import { headDir } from '../core/board';
 import { CHAPTERS, nextTask, progress, starsToScene } from '../core/meta';
 import { t } from '../i18n';
 import { drawCat, Mood } from './drawCat';
+import { art, has, HEAD_MOOD } from './art';
 import { playMusic, sfx } from './sfx';
-import { addFish, persist, platform, save, unlockBreed } from './state';
+import { addFish, grantPaws, persist, platform, save, unlockBreed } from './state';
+import { PAWS } from '../core/live';
 import { button, C, fishLabel, H, modal, toast, txt, W } from './ui';
 
 export type LevelData = { mode: 'level'; n: number } | { mode: 'daily'; date: string };
@@ -24,6 +26,8 @@ interface CatView {
   mood: Mood;
   hint: boolean;
   zz?: Phaser.GameObjects.Text;
+  head?: Phaser.GameObjects.Image;
+  acc?: Phaser.GameObjects.Image;
 }
 
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -130,6 +134,8 @@ export class LevelScene extends Phaser.Scene {
 
   private drawField() {
     const { w, h } = this.level;
+    const room = CHAPTERS[Math.min(progress(save.tasksDone).chapter, CHAPTERS.length - 1)].room;
+    art(this, room === 0 ? 'bg_board_floor' : 'bg_board_roof', W / 2, H / 2, W, H, true);
     const g = this.add.graphics();
     g.fillStyle(0xf3e2cc, 1).fillRoundedRect(this.ox - 14, this.oy - 14, this.cs * w + 28, this.cs * h + 28, 26);
     g.fillStyle(0xe2cdb4, 1);
@@ -147,7 +153,21 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private redraw(v: CatView, pts?: { x: number; y: number }[]) {
-    drawCat(v.g, pts ?? v.cat.cells.map((c) => this.px(c)), v.cat.breed, this.cs, v.mood, v.hint);
+    const p = pts ?? v.cat.cells.map((c) => this.px(c));
+    const key = `head_${BREEDS[v.cat.breed].key}_${HEAD_MOOD[v.mood]}`;
+    const accId = save.equipped[v.cat.breed];
+    const useArt = has(this, key);
+    drawCat(v.g, p, v.cat.breed, this.cs, v.mood, v.hint, useArt ? undefined : accId, useArt);
+    if (!useArt) return;
+    // generated head looks up; rotate it toward the direction of travel
+    const rot = Math.atan2(p[0].y - p[1].y, p[0].x - p[1].x) + Math.PI / 2;
+    if (!v.head) v.head = this.add.image(0, 0, key).setMask(this.mask);
+    v.head.setTexture(key).setDisplaySize(this.cs * 1.05, this.cs * 1.05).setPosition(p[0].x + v.g.x, p[0].y + v.g.y).setRotation(rot);
+    const accKey = accId ? `acc_${accId}` : '';
+    if (accKey && has(this, accKey)) {
+      if (!v.acc) v.acc = this.add.image(0, 0, accKey).setMask(this.mask);
+      v.acc.setTexture(accKey).setDisplaySize(this.cs * 0.9, this.cs * 0.9).setPosition(v.head.x, v.head.y).setRotation(rot);
+    } else v.acc?.setVisible(false);
   }
 
   /** tail..head followed by `extra` cells in front of the head */
@@ -330,6 +350,8 @@ export class LevelScene extends Phaser.Scene {
   private gone(v: CatView) {
     v.g.destroy();
     v.zz?.destroy();
+    v.head?.destroy();
+    v.acc?.destroy();
     this.views.delete(v.cat.id);
     this.rescued.push(v.cat.breed);
     if (this.views.size === 0 && !this.ended) this.win();
@@ -371,7 +393,7 @@ export class LevelScene extends Phaser.Scene {
     v.mood = 'happy';
     this.redraw(v);
     sfx.purr();
-    this.tweens.add({ targets: [v.g, v.zz].filter(Boolean), alpha: 0, duration: 400, onComplete: () => this.gone(v) });
+    this.tweens.add({ targets: [v.g, v.zz, v.head, v.acc].filter(Boolean), alpha: 0, duration: 400, onComplete: () => this.gone(v) });
   }
 
   private useHint() {
@@ -410,12 +432,14 @@ export class LevelScene extends Phaser.Scene {
     const lines: string[] = [];
     let reward = 0;
     let stars = 0;
+    let paws = 0;
     this.markFlawless();
     if (d.mode === 'level') {
       reward = levelReward(d.n, !!this.level.hard);
       if (d.n === save.level) {
         save.level = d.n + 1;
         stars = this.level.hard ? 2 : 1;
+        paws = this.level.hard ? PAWS.hard : PAWS.level;
       }
       save.best[d.n] = Math.max(save.best[d.n] ?? 0, this.hearts);
       platform.track('level_complete', { id: this.level.id, hearts: this.hearts });
@@ -428,9 +452,12 @@ export class LevelScene extends Phaser.Scene {
         const bonus = DAILY_STREAK_BONUS[save.daily.streak] ?? 0;
         reward = DAILY_REWARD + bonus;
         stars = 1;
+        paws = PAWS.daily;
+        if (!save.dailyBest || time < save.dailyBest) save.dailyBest = time;
+        platform.submitScore('daily', Math.round(time * 1000));
         if (bonus) lines.push(t('streakBonus', { n: bonus }));
       }
-      lines.unshift(t('dailyResult', { t: fmtTime(time), h: this.hearts }), t('streak', { n: save.daily.streak }));
+      lines.unshift(t('dailyResult', { t: fmtTime(time), h: this.hearts }), t('dailyBest', { t: fmtTime(save.dailyBest || time) }), t('streak', { n: save.daily.streak }));
       platform.track('daily_complete', { date: d.date, hearts: this.hearts, time });
     }
     const total = this.earned + reward;
@@ -440,6 +467,10 @@ export class LevelScene extends Phaser.Scene {
       if (unlockBreed(b)) lines.push(t('newBreed', { name: t('breed_' + BREEDS[b].key) }));
     }
     save.stars += stars;
+    if (paws) {
+      const msgs = grantPaws(paws);
+      lines.push(t('pawsGain', { n: paws, total: save.event.paws }), ...msgs);
+    }
     if (stars) this.time.delayedCall(500, () => sfx.star());
     persist();
     const goal = nextTask(save.tasksDone);

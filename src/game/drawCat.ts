@@ -9,7 +9,7 @@ const OUTLINE = 0x5b4636;
 /** Draws a stretchy cat along points (pts[0] = head) in pixel space. */
 export function drawCat(
   g: Phaser.GameObjects.Graphics, pts: P[], breed: number, size: number,
-  mood: Mood = 'calm', highlight = false,
+  mood: Mood = 'calm', highlight = false, acc?: string, skipHead = false,
 ) {
   g.clear();
   const b = BREEDS[breed] ?? BREEDS[0];
@@ -51,6 +51,7 @@ export function drawCat(
     g.fillCircle((a.x + c.x) / 2, (a.y + c.y) / 2, w * 0.2);
   }
 
+  if (skipHead) return;
   // head
   const h = pts[0];
   const nx = pts[1] ?? { x: h.x, y: h.y + 1 };
@@ -101,4 +102,34 @@ export function drawCat(
   }
   // nose
   g.fillStyle(0xf08a9a, 1).fillCircle(h.x + fx * R * 0.6, h.y + fy * R * 0.6, R * 0.1);
+  if (acc) drawAccessory(g, acc, h, R, fx, fy, sx, sy);
+}
+
+/** Procedural seasonal accessories (replaced by generated art later). Forward = (fx, fy), side = (sx, sy). */
+function drawAccessory(g: Phaser.GameObjects.Graphics, acc: string, h: P, R: number, fx: number, fy: number, sx: number, sy: number) {
+  const bx = h.x - fx * R * 0.35;
+  const by = h.y - fy * R * 0.35;
+  g.lineStyle(3, OUTLINE, 1);
+  if (acc === 'pompom_hat') {
+    g.fillStyle(0xe2556b, 1).fillCircle(bx, by, R * 0.5).strokeCircle(bx, by, R * 0.5);
+    g.fillStyle(0xfff6e8, 1).fillCircle(bx - fx * R * 0.35, by - fy * R * 0.35, R * 0.22).strokeCircle(bx - fx * R * 0.35, by - fy * R * 0.35, R * 0.22);
+  } else if (acc === 'earmuffs') {
+    for (const s of [-1, 1]) {
+      const x = h.x + sx * s * R * 0.95;
+      const y = h.y + sy * s * R * 0.95;
+      g.fillStyle(0xf6b3c4, 1).fillCircle(x, y, R * 0.3).strokeCircle(x, y, R * 0.3);
+    }
+  } else if (acc === 'scarf') {
+    const cx = h.x - fx * R * 0.95;
+    const cy = h.y - fy * R * 0.95;
+    g.lineStyle(R * 0.38, 0x7fcfb8, 1).lineBetween(cx - sx * R * 0.8, cy - sy * R * 0.8, cx + sx * R * 0.8, cy + sy * R * 0.8);
+    g.lineStyle(R * 0.12, 0xffffff, 1).lineBetween(cx - sx * R * 0.2, cy - sy * R * 0.2, cx + sx * R * 0.2, cy + sy * R * 0.2);
+  } else if (acc === 'snow_crown') {
+    g.fillStyle(0xa8dcf5, 1);
+    for (const s of [-1, 0, 1]) {
+      const x = bx + sx * s * R * 0.28;
+      const y = by + sy * s * R * 0.28;
+      g.fillTriangle(x - sx * R * 0.14, y - sy * R * 0.14, x + sx * R * 0.14, y + sy * R * 0.14, x - fx * R * 0.4, y - fy * R * 0.4);
+    }
+  }
 }

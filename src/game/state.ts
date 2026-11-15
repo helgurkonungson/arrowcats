@@ -1,5 +1,9 @@
+import { utcDate } from '../core/levels';
+import { ACCESSORIES, addPaws, GOLDEN, TROPHIES } from '../core/live';
+import type { Reward } from '../core/retention';
+import { rewardText } from '../core/retention';
 import { migrate, SaveData } from '../core/save';
-import { setLang } from '../i18n';
+import { setLang, t } from '../i18n';
 import type { IPlatform } from '../platform/IPlatform';
 import { clearLocalSave, LocalPlatform } from '../platform/local';
 import { setMuted } from './sfx';
@@ -34,4 +38,47 @@ export function unlockBreed(b: number): boolean {
   save.breeds.push(b);
   persist();
   return true;
+}
+
+/** Applies a reward; paws go through the weekly event track. Returns lines to show. */
+export function grant(r: Reward): string[] {
+  save.fish += r.fish ?? 0;
+  save.stars += r.stars ?? 0;
+  const out = r.paws ? grantPaws(r.paws) : [];
+  persist();
+  return out;
+}
+
+/** Adds event paws and pays out reached track steps, trophies, accessories and the season prize. */
+export function grantPaws(n: number): string[] {
+  const r = addPaws(save.event, save.season, utcDate(), n);
+  const out: string[] = [];
+  for (const st of r.steps) {
+    if (st.reward) {
+      save.fish += st.reward.fish ?? 0;
+      save.stars += st.reward.stars ?? 0;
+      out.push(t('eventStep', { r: rewardText(st.reward) }));
+    }
+    if (st.trophy) {
+      const tr = TROPHIES[r.week];
+      if (!save.trophies.includes(tr)) save.trophies.push(tr);
+      out.push(t('gotTrophy', { name: t('trophy_' + tr) }));
+    }
+    if (st.accessory) {
+      const a = ACCESSORIES[r.week];
+      if (!save.accessories.includes(a)) save.accessories.push(a);
+      out.push(t('gotAccessory', { name: t('acc_' + a) }));
+    }
+  }
+  if (r.seasonComplete) {
+    if (!save.breeds.includes(GOLDEN)) {
+      save.breeds.push(GOLDEN);
+      out.push(t('gotGolden'));
+    } else {
+      save.fish += 300;
+      out.push(t('seasonBonus'));
+    }
+  }
+  persist();
+  return out;
 }

@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
 import { CAFE_ROOMS, CAFE_SLOTS, CAFE_VARIANTS } from '../core/content';
 import { CHAPTERS, doTask, nextTask, progress } from '../core/meta';
-import { tipsAvailable } from '../core/retention';
+import { comfort, tipsAvailable, tipsRate } from '../core/retention';
+import { TAG_ICON, tagOf, TROPHY_ICON, updateVisitor, VISITORS } from '../core/live';
+import { BREEDS } from '../core/content';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
+import { art } from './art';
 import { playMusic, sfx } from './sfx';
-import { addFish, persist, platform, save } from './state';
+import { addFish, persist, platform, save, unlockBreed } from './state';
 import { button, C, dialog, modal, toast, txt, W } from './ui';
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -41,11 +44,12 @@ export class CafeScene extends Phaser.Scene {
     g.fillStyle(WALL[r], 1).fillRect(0, 160, W, 500);
     g.fillStyle(FLOOR[r], 1).fillRect(0, 660, W, 460);
     g.lineStyle(6, C.inkN, 1).lineBetween(0, 660, W, 660);
+    art(this, `cafe_room${r + 1}`, W / 2, 640, W, 960, true);
 
     button(this, 70, 70, 90, 80, '‹', () => this.scene.start('Menu'), { color: C.gray, size: 48 });
     txt(this, W / 2, 70, t('chapter_' + CHAPTERS[r].key), 34);
     txt(this, W - 30, 70, t('stars', { n: save.stars }), 34).setOrigin(1, 0.5);
-    txt(this, W / 2, 128, t('catsInCafe', { n: save.breeds.length }), 24);
+    txt(this, W / 2, 128, t('comfort', { n: comfort(save.cafe), r: tipsRate(save.cafe) }), 24);
     if (r > 0) button(this, 90, 130, 70, 56, '◀', () => this.scene.restart({ room: r - 1 }), { color: C.gray, size: 28 });
     if (r < CAFE_ROOMS - 1)
       button(this, W - 90, 130, 70, 56, '▶', () => {
@@ -57,8 +61,10 @@ export class CafeScene extends Phaser.Scene {
       const rect = SLOT_RECT[key];
       const v = save.cafe[r][i];
       if (v >= 0) {
-        const ig = this.add.graphics();
-        this.drawItem(ig, key, rect, CAFE_VARIANTS[r][v]);
+        if (!art(this, `decor_r${r + 1}_${key}_${v}`, rect.x, rect.y, rect.w * 1.2, rect.h * 1.2)) {
+          this.drawItem(this.add.graphics(), key, rect, CAFE_VARIANTS[r][v]);
+        }
+        txt(this, rect.x + rect.w / 2 - 6, rect.y - rect.h / 2 + 6, TAG_ICON[tagOf(i, v)], 26);
         const hit = this.add.zone(rect.x, rect.y, rect.w, rect.h).setInteractive({ useHandCursor: true });
         hit.on('pointerdown', () => this.pickVariant(i));
       } else {
@@ -68,7 +74,13 @@ export class CafeScene extends Phaser.Scene {
       }
     });
 
+    if (r === 0 && save.trophies.length) {
+      const sg = this.add.graphics();
+      sg.fillStyle(0xb98a5a, 1).fillRoundedRect(220, 585, 280, 18, 6).lineStyle(3, C.inkN, 1).strokeRoundedRect(220, 585, 280, 18, 6);
+      save.trophies.forEach((tr, k) => txt(this, 255 + k * 70, 562, TROPHY_ICON[tr] ?? '🏆', 40));
+    }
     this.spawnCats();
+    this.drawVisitor();
     this.drawTaskPanel();
     const tips = tipsAvailable(save.cafe, save.tips.since, Date.now());
     button(this, 130, 1065, 210, 70, t('tipsLabel', { n: tips }), () => {
@@ -152,9 +164,9 @@ export class CafeScene extends Phaser.Scene {
 
   private pickVariant(slot: number) {
     const r = this.room;
-    const close = modal(this, t('slot_' + CAFE_SLOTS[slot]), [t('chooseVariant')],
+    const close = modal(this, t('slot_' + CAFE_SLOTS[slot]), [t('chooseVariant'), t('visitorHint')],
       CAFE_VARIANTS[r].map((color, v) => ({
-        label: save.cafe[r][slot] === v ? '✓' : ' ',
+        label: `${save.cafe[r][slot] === v ? '✓ ' : ''}${TAG_ICON[tagOf(slot, v)]} ${t('tag_' + tagOf(slot, v))}`,
         color,
         onClick: () => {
           save.cafe[r][slot] = v;
@@ -163,6 +175,41 @@ export class CafeScene extends Phaser.Scene {
           this.scene.restart({ room: r });
         },
       })));
+  }
+
+  /** Guests appear after 2+ hours away if the café has the tags they like. */
+  private drawVisitor() {
+    if (updateVisitor(save.visit, save.cafe, save.breeds, Date.now(), Math.random())) sfx.chest();
+    persist();
+    const b = save.visit.visitor;
+    if (b < 0) return;
+    const vis = VISITORS.find((v) => v.breed === b)!;
+    const g = this.add.graphics();
+    drawCat(g, [{ x: 470, y: 715 }, { x: 420, y: 715 }, { x: 400, y: 735 }], b, 64, 'happy');
+    const bell = txt(this, 470, 660, '🔔', 40);
+    this.tweens.add({ targets: bell, angle: 15, duration: 300, yoyo: true, repeat: -1 });
+    const zone = this.add.zone(440, 710, 160, 120).setInteractive({ useHandCursor: true });
+    zone.on('pointerdown', () => {
+      const name = t('breed_' + BREEDS[b].key);
+      const close = modal(this, t('visitorTitle', { name }), [t('visitorText')], [
+        {
+          label: t('visitorTreat', { n: vis.treat }), color: C.green, disabled: save.fish < vis.treat,
+          onClick: () => {
+            if (save.fish < vis.treat) return toast(this, t('noFish'));
+            addFish(-vis.treat);
+            unlockBreed(b);
+            save.visit.visitor = -1;
+            persist();
+            sfx.purr();
+            platform.track('visitor_adopt', { breed: b });
+            close();
+            toast(this, t('visitorAdopted', { name }), 1000);
+            this.time.delayedCall(900, () => this.scene.restart({ room: this.room }));
+          },
+        },
+        { label: t('visitorLater'), color: C.gray, onClick: () => close() },
+      ]);
+    });
   }
 
   private spawnCats() {

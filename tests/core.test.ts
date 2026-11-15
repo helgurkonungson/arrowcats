@@ -95,7 +95,7 @@ describe('meta', () => {
   it('migrates v1 cafe purchases into done tasks', () => {
     const s = migrate({ v: 1, cafe: [[0, 1, -1, -1, -1]] });
     expect(s.tasksDone).toEqual(['hall_d0', 'hall_d1']);
-    expect(s.v).toBe(3);
+    expect(s.v).toBe(4);
   });
 });
 
@@ -125,5 +125,42 @@ describe('retention', () => {
     expect(streakState('2026-11-15', 4, '2026-11-15')).toEqual({ streak: 4, alive: true, atRisk: false });
     expect(streakState('2026-11-14', 4, '2026-11-15').atRisk).toBe(true);
     expect(streakState('2026-11-12', 4, '2026-11-15').alive).toBe(false);
+  });
+});
+
+import { addPaws, eventAt, setComplete, SETS, tagCounts, TRACK, updateVisitor } from '../src/core/live';
+
+describe('live', () => {
+  it('visitor arrives only after 2 h away and with enough tags', () => {
+    const v = { visitor: -1, until: 0, lastSeen: 0 };
+    const cafe = [[0, 2, -1, -1, -1]]; // slot0 v0 -> cozy, slot1 v2 -> cozy
+    expect(tagCounts(cafe).cozy).toBe(2);
+    expect(updateVisitor(v, cafe, [], 1000, 0)).toBe(false); // first sight only stamps time
+    expect(updateVisitor(v, cafe, [], 1000 + 3600000, 0)).toBe(false); // 1 h away
+    expect(updateVisitor(v, cafe, [], 1000 + 3600000 * 4, 0)).toBe(true);
+    expect(v.visitor).toBe(9); // sphynx likes cozy
+    updateVisitor(v, cafe, [9], 1000 + 3600000 * 5, 0);
+    expect(v.visitor).toBe(-1); // adopted -> leaves
+  });
+
+  it('sets complete when all four breeds are owned', () => {
+    expect(setComplete(SETS[0].breeds, [0, 1, 2])).toBe(false);
+    expect(setComplete(SETS[0].breeds, [3, 2, 1, 0, 5])).toBe(true);
+  });
+
+  it('event track pays out in order and four tracks finish a season', () => {
+    const ev = { id: '', paws: 0, claimed: 0 };
+    const season = { id: -999, tracks: 0 };
+    const weeks = ['2026-11-09', '2026-11-16', '2026-11-23', '2026-11-30'];
+    expect(eventAt(weeks[0]).season).toBe(eventAt(weeks[3]).season);
+    let done = false;
+    weeks.forEach((d, i) => {
+      const r = addPaws(ev, season, d, 100);
+      expect(r.steps.length).toBe(TRACK.length);
+      expect(r.week).toBe(eventAt(d).week);
+      if (i === 3) done = r.seasonComplete;
+    });
+    expect(done).toBe(true);
+    expect(addPaws(ev, season, '2026-12-01', 5).steps.length).toBe(0); // same week, track already done
   });
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Converts generated WAVs from Art/audio/<name>.wav into public/audio/<name>.mp3
+# Converts generated WAVs from Sound/audio/<name>.wav into public/audio/<name>.mp3
 # (trim silence, loudness-normalize, mono for SFX) and rebuilds manifest.json.
-# Usage: tools/audio/process.sh /path/to/Art/audio
+# Usage: tools/audio/process.sh ../Sound/audio
 set -euo pipefail
 SRC="${1:?path to folder with .wav files}"
 DST="$(cd "$(dirname "$0")/../.." && pwd)/public/audio"

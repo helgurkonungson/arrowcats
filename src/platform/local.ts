@@ -36,6 +36,7 @@ export class LocalPlatform implements IPlatform {
   async restorePurchases() {
     return [];
   }
+  submitScore() {}
   track(event: string, params?: Record<string, unknown>) {
     if (import.meta.env.DEV) console.debug('[track]', event, params ?? '');
   }

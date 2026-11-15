@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { drawCat } from './drawCat';
+import { has, SPEAKER_ART } from './art';
 import { sfx } from './sfx';
 
 export const W = 720;
@@ -133,12 +134,20 @@ export function dialog(s: Phaser.Scene, lines: DialogLine[], hint: string, onDon
     fontFamily: FONT, fontSize: '31px', color: C.ink, wordWrap: { width: W - 120 }, lineSpacing: 6,
   });
   const tip = txt(s, W / 2, H - 100, hint, 22, '#9b8a7a');
-  c.add([dim, g, pg, name, body, tip]);
+  const face = s.add.image(105, top + 30, '__DEFAULT').setVisible(false);
+  c.add([dim, g, pg, face, name, body, tip]);
   let i = 0;
   const show = () => {
     const l = lines[i];
     name.setText(l.name);
     body.setText(l.text);
+    const key = SPEAKER_ART[l.who];
+    if (key && has(s, key)) {
+      pg.clear();
+      face.setTexture(key).setDisplaySize(170, 170).setVisible(true);
+      return;
+    }
+    face.setVisible(false);
     drawCat(pg, [{ x: 105, y: top + 45 }, { x: 105, y: top + 62 }], SPEAKER_BREED[l.who] ?? 0, 90, 'happy');
     if (l.who === 'murr') {
       pg.lineStyle(4, 0x8a6a2a, 1).strokeCircle(92, top + 40, 10).strokeCircle(118, top + 40, 10).lineBetween(102, top + 40, 108, top + 40);

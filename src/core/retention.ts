@@ -4,12 +4,16 @@ import { prevDate } from './save';
 export interface Reward {
   fish?: number;
   stars?: number;
+  paws?: number;
 }
 
 /** Visible in advance; day 7 is the chest. */
 export const CALENDAR: Reward[] = [
-  { fish: 20 }, { fish: 30 }, { stars: 1 }, { fish: 50 }, { fish: 40 }, { fish: 80 }, { fish: 100, stars: 2 },
+  { fish: 20 }, { fish: 30 }, { stars: 1 }, { fish: 50 }, { paws: 5 }, { fish: 80 }, { fish: 100, stars: 2 },
 ];
+
+export const rewardText = (r: Reward) =>
+  [r.fish ? `${r.fish} 🐟` : '', r.stars ? `${r.stars} ⭐` : '', r.paws ? `${r.paws} 🐾` : ''].filter(Boolean).join(' + ');
 
 export interface CalendarState {
   day: number; // index of the next reward to claim, 0..6

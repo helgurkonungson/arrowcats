@@ -1,16 +1,14 @@
 import Phaser from 'phaser';
 import { utcDate } from '../core/levels';
 import { CHAPTERS, INTRO, nextTask, progress, starsToScene } from '../core/meta';
-import { CALENDAR, claimCalendar, Reward, streakState, tipsAvailable, tipsCap } from '../core/retention';
+import { CALENDAR, claimCalendar, rewardText, streakState, tipsAvailable, tipsCap } from '../core/retention';
 import { prevDate } from '../core/save';
+import { eventAt, updateVisitor } from '../core/live';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { playMusic, setMuted, sfx } from './sfx';
-import { addFish, persist, save } from './state';
-import { button, C, dialog, fishLabel, txt, W, H } from './ui';
-
-export const rewardText = (r: Reward) =>
-  [r.fish ? `${r.fish} 🐟` : '', r.stars ? `${r.stars} ⭐` : ''].filter(Boolean).join(' + ');
+import { grant, persist, save } from './state';
+import { button, C, dialog, fishLabel, toast, txt, W, H } from './ui';
 
 export class MenuScene extends Phaser.Scene {
   private introDone: () => void = () => {};
@@ -33,14 +31,16 @@ export class MenuScene extends Phaser.Scene {
 
     const today = utcDate();
     const dailyDone = !!save.daily.results[today];
-    button(this, W / 2, 620, 520, 120, '▶ ' + t('play', { n: save.level }), () =>
+    button(this, W / 2, 605, 520, 110, '▶ ' + t('play', { n: save.level }), () =>
       this.scene.start('Level', { mode: 'level', n: save.level }), { color: C.green, size: 40 });
-    button(this, W / 2, 770, 520, 110, (dailyDone ? '' : '📅 ') + t(dailyDone ? 'dailyDone' : 'daily'), () =>
+    button(this, W / 2, 725, 520, 96, (dailyDone ? '' : '📅 ') + t(dailyDone ? 'dailyDone' : 'daily'), () =>
       this.scene.start('Level', { mode: 'daily', date: today }), { color: C.blue });
     const task = nextTask(save.tasksDone);
     const tips = tipsAvailable(save.cafe, save.tips.since, Date.now());
-    const ready = (!!task && save.stars >= task.cost) || tips >= tipsCap(save.cafe) / 2;
-    const cafeBtn = button(this, W / 2, 910, 520, 110, '☕ ' + t('cafe') + (ready ? '  ❗' : ''), () => this.scene.start('Cafe'), {
+    if (updateVisitor(save.visit, save.cafe, save.breeds, Date.now(), Math.random())) this.time.delayedCall(400, () => toast(this, t('visitorArrived'), 470));
+    persist();
+    const ready = (!!task && save.stars >= task.cost) || tips >= tipsCap(save.cafe) / 2 || save.visit.visitor >= 0;
+    const cafeBtn = button(this, W / 2, 835, 520, 96, '☕ ' + t('cafe') + (ready ? '  ❗' : ''), () => this.scene.start('Cafe'), {
       color: C.pink,
     });
     if (ready) this.tweens.add({ targets: cafeBtn, scale: 1.04, duration: 600, yoyo: true, repeat: -1 });
@@ -49,12 +49,14 @@ export class MenuScene extends Phaser.Scene {
       const need = starsToScene(save.tasksDone, save.stars);
       txt(this, W / 2, 520, `${t('chapter_' + CHAPTERS[p.chapter].key)} · ${need ? t('toScene', { n: need }) : t('sceneReady')}`, 26);
     }
-    button(this, W / 2, 1050, 520, 110, '🐾 ' + t('collection'), () => this.scene.start('Collection'), {
+    button(this, W / 2, 945, 520, 96, '🐱 ' + t('collection'), () => this.scene.start('Collection'), {
       color: C.purple,
     });
+    const ev = eventAt(today);
+    button(this, W / 2, 1055, 520, 96, `🐾 ${t('event')} · ${save.event.id === ev.id ? save.event.paws : 0}`, () => this.scene.start('Event'), { color: C.primary });
     const st = streakState(save.daily.last, save.daily.streak, today);
-    if (st.alive) txt(this, W / 2, 1160, st.atRisk ? t('streakRisk', { n: st.streak }) : t('streakFlame', { n: st.streak }), 26, st.atRisk ? '#d0603a' : C.ink);
-    txt(this, W / 2, 1220, t('tomorrow', { r: rewardText(CALENDAR[save.calendar.day % 7]) }), 24, '#9b8a7a');
+    if (st.alive) txt(this, W / 2, 1172, st.atRisk ? t('streakRisk', { n: st.streak }) : t('streakFlame', { n: st.streak }), 26, st.atRisk ? '#d0603a' : C.ink);
+    txt(this, W / 2, 1230, t('tomorrow', { r: rewardText(CALENDAR[save.calendar.day % 7]) }), 24, '#9b8a7a');
 
     const sound = button(this, 80, 60, 100, 80, save.muted ? '🔇' : '🔊', () => {
       save.muted = !save.muted;
@@ -78,9 +80,7 @@ export class MenuScene extends Phaser.Scene {
     }
     const claim = claimCalendar(save.calendar, today);
     if (claim) {
-      addFish(claim.reward.fish ?? 0);
-      save.stars += claim.reward.stars ?? 0;
-      persist();
+      grant(claim.reward);
       const show = () => this.showCalendar(claim.index, () => this.scene.restart());
       if (introNow) this.introDone = show;
       else show();
@@ -102,8 +102,8 @@ export class MenuScene extends Phaser.Scene {
       const cell = this.add.graphics();
       cell.fillStyle(i === today ? 0xfff07a : i < today ? C.green : C.gray, 1).fillRoundedRect(x - 42, y - 70, 84, 140, 16);
       cell.lineStyle(3, C.inkN, 1).strokeRoundedRect(x - 42, y - 70, 84, 140, 16);
-      c.add([cell, txt(this, x, y - 45, String(i + 1), 24), txt(this, x, y + 5, i === 6 ? '🎁' : r.stars ? '⭐' : '🐟', 36),
-        txt(this, x, y + 48, String((r.fish ?? 0) || r.stars), 22)]);
+      c.add([cell, txt(this, x, y - 45, String(i + 1), 24), txt(this, x, y + 5, i === 6 ? '🎁' : r.stars ? '⭐' : r.paws ? '🐾' : '🐟', 36),
+        txt(this, x, y + 48, String(r.fish ?? r.stars ?? r.paws), 22)]);
       if (i < today) c.add(txt(this, x + 26, y - 52, '✓', 26, '#2f7d32'));
     });
     c.add(txt(this, W / 2, top + 320, '+' + rewardText(CALENDAR[today]), 36));

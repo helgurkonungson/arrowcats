@@ -6,7 +6,17 @@ export interface DailyResult {
 }
 
 export interface SaveData {
-  v: 3;
+  v: 4;
+  visit: { visitor: number; until: number; lastSeen: number };
+  setsClaimed: string[];
+  accessories: string[];
+  /** breed -> accessory id */
+  equipped: Record<number, string>;
+  trophies: string[];
+  event: { id: string; paws: number; claimed: number };
+  season: { id: number; tracks: number };
+  /** best daily puzzle time in seconds, 0 = none */
+  dailyBest: number;
   calendar: { day: number; last: string };
   /** ms timestamp since tips started accumulating (0 = not started) */
   tips: { since: number };
@@ -30,11 +40,19 @@ export interface SaveData {
   muted: boolean;
 }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function defaultSave(): SaveData {
   return {
-    v: 3,
+    v: 4,
+    visit: { visitor: -1, until: 0, lastSeen: 0 },
+    setsClaimed: [],
+    accessories: [],
+    equipped: {},
+    trophies: [],
+    event: { id: '', paws: 0, claimed: 0 },
+    season: { id: -999, tracks: 0 },
+    dailyBest: 0,
     calendar: { day: 0, last: '' },
     tips: { since: 0 },
     level: 1,
@@ -64,8 +82,11 @@ export function migrate(raw: unknown): SaveData {
   return {
     ...base,
     ...s,
-    v: 3,
+    v: 4,
     tasksDone,
+    visit: { ...base.visit, ...(s.visit ?? {}) },
+    event: { ...base.event, ...(s.event ?? {}) },
+    season: { ...base.season, ...(s.season ?? {}) },
     calendar: { ...base.calendar, ...(s.calendar ?? {}) },
     tips: { ...base.tips, ...(s.tips ?? {}) },
     daily: { ...base.daily, ...(s.daily ?? {}) },
