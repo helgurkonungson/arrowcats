@@ -55,9 +55,17 @@ export function button(
   return c;
 }
 
+/** One toast at a time per scene: a new one replaces the previous instantly (no stacking). */
 export function toast(s: Phaser.Scene, msg: string, y = 230) {
+  const prev = s.data.get('toast') as Phaser.GameObjects.GameObject[] | undefined;
+  if (prev) {
+    s.tweens.killTweensOf(prev);
+    prev.forEach((o) => o.destroy());
+  }
   const t = txt(s, W / 2, y, msg, 30).setDepth(200);
   const bg = s.add.graphics().setDepth(199);
+  s.data.set('toast', [t, bg]);
+  s.tweens.add({ targets: t, scale: { from: 1.15, to: 1 }, duration: 120 });
   const b = t.getBounds();
   bg.fillStyle(C.panel, 0.95).fillRoundedRect(b.x - 18, b.y - 10, b.width + 36, b.height + 20, 18);
   bg.lineStyle(3, C.inkN, 1).strokeRoundedRect(b.x - 18, b.y - 10, b.width + 36, b.height + 20, 18);

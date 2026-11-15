@@ -81,9 +81,9 @@ export function utcDate(d = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-const DAILY_EPOCH = Date.UTC(2026, 10, 14);
+const DAILY_EPOCH = Date.UTC(2026, 10, 15);
 export const dailyNumber = (date: string) =>
-  Math.round((Date.parse(date + 'T00:00:00Z') - DAILY_EPOCH) / 86400000) + 1;
+  Math.max(1, Math.round((Date.parse(date + "T00:00:00Z") - DAILY_EPOCH) / 86400000) + 1);
 
 export function getDaily(date: string): Level {
   const key = 'D' + date;

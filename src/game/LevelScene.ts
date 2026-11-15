@@ -3,7 +3,7 @@ import { Board } from '../core/board';
 import {
   COMBO_WINDOW_MS, COST, DAILY_REWARD, DAILY_STREAK_BONUS, FISH_PER_CAT, levelReward, BREEDS,
 } from '../core/content';
-import { dailyNumber, getDaily, getLevel } from '../core/levels';
+import { dailyNumber, getDaily, getLevel, TUTORIAL_COUNT } from '../core/levels';
 import { prevDate } from '../core/save';
 import { Cat, Cell, DX, DY, Level } from '../core/types';
 import { headDir } from '../core/board';
@@ -46,6 +46,9 @@ export class LevelScene extends Phaser.Scene {
   private heartsText!: Phaser.GameObjects.Text;
   private timerText?: Phaser.GameObjects.Text;
   private fish!: { refresh: () => void };
+  private hintBtn!: Phaser.GameObjects.Container;
+  private feedBtn!: Phaser.GameObjects.Container;
+  private mask!: Phaser.Display.Masks.GeometryMask;
 
   constructor() {
     super('Level');
@@ -69,7 +72,7 @@ export class LevelScene extends Phaser.Scene {
     this.level = d.mode === 'level' ? getLevel(d.n) : getDaily(d.date);
     this.board = new Board(this.level);
     const { w, h } = this.level;
-    if (this.level.hard) this.cameras.main.setBackgroundColor(0xf7e1e6);
+    this.cameras.main.setBackgroundColor(this.level.hard ? 0xf7e1e6 : C.bg);
 
     const top = 190;
     const bottom = 210;
@@ -79,10 +82,14 @@ export class LevelScene extends Phaser.Scene {
     this.ox = Math.round((W - this.cs * w) / 2);
     this.oy = Math.round(top + (availH - this.cs * h) / 2);
     this.drawField();
+    // cats sliding off the board are clipped to the field so they never cover the HUD
+    const mg = this.make.graphics({}, false);
+    mg.fillStyle(0xffffff).fillRect(this.ox - 14, this.oy - 14, this.cs * w + 28, this.cs * h + 28);
+    this.mask = mg.createGeometryMask();
 
     for (const cat of this.board.cats.values()) {
       const v: CatView = {
-        cat, g: this.add.graphics(), awake: !cat.sleepy, busy: false,
+        cat, g: this.add.graphics().setMask(this.mask), awake: !cat.sleepy, busy: false,
         mood: cat.sleepy ? 'sleep' : 'calm', hint: false,
       };
       if (cat.sleepy) {
@@ -99,6 +106,11 @@ export class LevelScene extends Phaser.Scene {
     zone.on('pointerdown', (p: Phaser.Input.Pointer) => this.onTap(p.x, p.y));
 
     this.drawHud();
+    if (d.mode === 'level' && d.n <= TUTORIAL_COUNT) {
+      txt(this, W / 2, H - 235, t(d.n === 1 ? 'tut1' : 'tut2'), 26).setWordWrapWidth(640);
+      this.time.delayedCall(600, () => this.tutorialHint());
+    }
+    if (new URLSearchParams(location.search).has('debug')) this.exposeDebug();
     this.startTime = this.time.now;
     platform.gameplayStart();
     platform.track('level_start', { id: this.level.id });
@@ -168,19 +180,66 @@ export class LevelScene extends Phaser.Scene {
     const title = d.mode === 'daily'
       ? t('dailyTitle', { n: dailyNumber(d.date) })
       : t(this.level.hard ? 'hardLevel' : 'level', { n: d.n });
-    txt(this, W / 2, 55, title, 40);
+    const tt = txt(this, W / 2, 55, title, 40);
+    if (tt.width > 400) tt.setScale(400 / tt.width); // keep clear of the back button and fish counter
     this.heartsText = txt(this, W / 2, 110, '', 40, '#e2556b');
     this.updateHearts();
     this.fish = fishLabel(this, W - 30, 70, () => save.fish + this.earned);
     if (d.mode === 'daily') this.timerText = txt(this, W - 100, 130, '', 28);
 
     const by = H - 110;
-    button(this, W / 2 - 165, by, 300, 110, `💡 ${t('hint')}\n${COST.hint} 🐟`, () => this.useHint(), {
-      color: C.blue, size: 28, disabled: save.fish < COST.hint,
+    this.hintBtn = button(this, W / 2 - 165, by, 300, 110, `💡 ${t('hint')}\n${COST.hint} 🐟`, () => this.useHint(), {
+      color: C.blue, size: 28,
     });
-    button(this, W / 2 + 165, by, 300, 110, `🍗 ${t('feed')}\n${COST.feed} 🐟`, () => this.useFeed(), {
-      color: C.green, size: 28, disabled: save.fish < COST.feed,
+    this.feedBtn = button(this, W / 2 + 165, by, 300, 110, `🍗 ${t('feed')}\n${COST.feed} 🐟`, () => this.useFeed(), {
+      color: C.green, size: 28,
     });
+    this.refreshUi();
+  }
+
+  private wallet() {
+    return save.fish + this.earned;
+  }
+
+  /** Spends fish earned in this level first, then the saved wallet. */
+  private spend(cost: number): boolean {
+    if (this.wallet() < cost) return false;
+    const fromEarned = Math.min(this.earned, cost);
+    this.earned -= fromEarned;
+    if (cost > fromEarned) addFish(-(cost - fromEarned));
+    this.refreshUi();
+    return true;
+  }
+
+  private refreshUi() {
+    this.fish.refresh();
+    this.hintBtn.setAlpha(this.wallet() >= COST.hint ? 1 : 0.5);
+    this.feedBtn.setAlpha(this.feedArmed ? 0.7 : this.wallet() >= COST.feed ? 1 : 0.5);
+    this.feedBtn.setScale(this.feedArmed ? 1.06 : 1);
+  }
+
+  /** Free pulse on a free cat in tutorial levels. */
+  private tutorialHint() {
+    if (this.ended) return;
+    const v = this.board.freeCats().map((id) => this.views.get(id)).find((x) => x && !x.busy);
+    if (!v || v.hint) return;
+    v.hint = true;
+    this.redraw(v);
+  }
+
+  private exposeDebug() {
+    (window as unknown as Record<string, unknown>).__ac = {
+      free: () => this.board.freeCats().map((id) => {
+        const p = this.px(this.board.cats.get(id)!.cells[0]);
+        return { x: p.x, y: p.y };
+      }),
+      blocked: () => [...this.board.cats.keys()].filter((id) => !this.board.check(id).free).map((id) => {
+        const p = this.px(this.board.cats.get(id)!.cells[0]);
+        return { x: p.x, y: p.y };
+      }),
+      fish: () => this.wallet(),
+      state: () => ({ ended: this.ended, hearts: this.hearts, cats: this.views.size, id: this.level.id }),
+    };
   }
 
   private updateHearts() {
@@ -213,8 +272,11 @@ export class LevelScene extends Phaser.Scene {
     if (!v || v.busy) return;
 
     if (this.feedArmed) {
+      if (!this.spend(COST.feed)) return;
       this.feedArmed = false;
+      this.refreshUi();
       this.feed(v);
+      platform.track('booster_used', { type: 'feed' });
       return;
     }
     if (!v.awake) {
@@ -254,10 +316,10 @@ export class LevelScene extends Phaser.Scene {
     let gain = FISH_PER_CAT;
     if (this.combo >= 2) {
       gain += this.combo - 1;
-      toast(this, t('combo', { n: this.combo, f: this.combo - 1 }), 180);
+      toast(this, t('combo', { n: this.combo, f: this.combo - 1 }), H - 240);
     }
     this.earned += gain;
-    this.fish.refresh();
+    this.refreshUi();
     sfx.coin();
   }
 
@@ -267,6 +329,7 @@ export class LevelScene extends Phaser.Scene {
     this.views.delete(v.cat.id);
     this.rescued.push(v.cat.breed);
     if (this.views.size === 0 && !this.ended) this.win();
+    else if (this.d.mode === 'level' && this.d.n <= TUTORIAL_COUNT) this.tutorialHint();
   }
 
   private bonk(v: CatView, steps: number, blocker: number) {
@@ -281,13 +344,13 @@ export class LevelScene extends Phaser.Scene {
     const tr = this.trajectory(v.cat, steps + 1);
     const o = { s: 0 };
     this.tweens.add({
-      targets: o, s: steps + 0.35, duration: 100 + steps * 40, ease: 'Sine.InOut', yoyo: true,
+      targets: o, s: steps + 0.35, duration: 80 + steps * 30, ease: 'Sine.InOut', yoyo: true,
       onUpdate: () => this.redraw(v, this.pointsAt(tr, len, o.s)),
       onComplete: () => {
+        v.busy = false;
         this.redraw(v);
-        this.time.delayedCall(250, () => {
-          if (!v.g.active) return;
-          v.busy = false;
+        this.time.delayedCall(300, () => {
+          if (!v.g.active || v.busy) return;
           v.mood = 'calm';
           this.redraw(v);
         });
@@ -309,12 +372,10 @@ export class LevelScene extends Phaser.Scene {
 
   private useHint() {
     if (this.ended) return;
-    if (save.fish < COST.hint) return toast(this, t('noFish'));
     const free = this.board.freeCats().map((id) => this.views.get(id)!).filter((v) => v && !v.busy && !v.hint);
     if (!free.length) return;
+    if (!this.spend(COST.hint)) return toast(this, t('noFish'));
     const v = free.find((x) => x.awake) ?? free[0];
-    addFish(-COST.hint);
-    this.fish.refresh();
     v.hint = true;
     this.redraw(v);
     this.tweens.add({ targets: v.g, alpha: 0.55, duration: 250, yoyo: true, repeat: 3 });
@@ -322,13 +383,17 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private useFeed() {
-    if (this.ended || this.feedArmed) return;
-    if (save.fish < COST.feed) return toast(this, t('noFish'));
-    addFish(-COST.feed);
-    this.fish.refresh();
+    if (this.ended) return;
+    if (this.feedArmed) {
+      // second press cancels
+      this.feedArmed = false;
+      this.refreshUi();
+      return;
+    }
+    if (this.wallet() < COST.feed) return toast(this, t('noFish'));
     this.feedArmed = true;
-    toast(this, t('pickCat'));
-    platform.track('booster_used', { type: 'feed' });
+    this.refreshUi();
+    toast(this, t('pickCat'), H - 240);
   }
 
   // ---------- end states ----------
@@ -386,19 +451,16 @@ export class LevelScene extends Phaser.Scene {
       {
         label: t('continueHeart', { n: COST.heart }),
         color: C.pink,
-        disabled: save.fish + this.earned < COST.heart,
+        disabled: this.wallet() < COST.heart,
         onClick: () => {
-          if (save.fish + this.earned < COST.heart) return toast(this, t('noFish'));
-          // pay from earned fish first, then from the wallet
-          const fromEarned = Math.min(this.earned, COST.heart);
-          this.earned -= fromEarned;
-          addFish(-(COST.heart - fromEarned));
-          this.fish.refresh();
+          if (!this.spend(COST.heart)) return toast(this, t('noFish'));
           this.hearts = 1;
           this.updateHearts();
           this.ended = false;
-          platform.gameplayStart();
           close();
+          // cats that finished leaving while the modal was open may have emptied the board
+          if (this.views.size === 0) return this.win();
+          platform.gameplayStart();
         },
       },
       { label: t('retry'), color: C.green, onClick: () => this.scene.restart(this.d) },

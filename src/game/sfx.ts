@@ -1,11 +1,18 @@
 /** Tiny procedural sound effects (no audio files needed for the prototype). */
 let ctx: AudioContext | null = null;
 let muted = false;
+// browsers only allow audio after a user gesture
+let unlocked = false;
+if (typeof window !== 'undefined')
+  window.addEventListener('pointerdown', () => {
+    unlocked = true;
+    if (ctx?.state === 'suspended') void ctx.resume();
+  });
 
 export const setMuted = (m: boolean) => (muted = m);
 
 function ac(): AudioContext | null {
-  if (muted) return null;
+  if (muted || !unlocked) return null;
   if (!ctx) {
     try {
       ctx = new AudioContext();

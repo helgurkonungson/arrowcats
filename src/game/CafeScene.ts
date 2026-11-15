@@ -63,6 +63,7 @@ export class CafeScene extends Phaser.Scene {
         ph.lineStyle(3, C.inkN, 0.5).strokeRoundedRect(rect.x - rect.w / 2, rect.y - rect.h / 2, rect.w, rect.h, 14);
         const cost = slotCost(r, i);
         button(this, rect.x, rect.y, Math.max(130, Math.min(rect.w, 170)), 64, '+ ' + t('buy', { n: cost }), () => {
+          if (save.cafe[r][i] >= 0) return;
           if (save.fish < cost) return toast(this, t('noFish'));
           addFish(-cost);
           save.cafe[r][i] = 0;
