@@ -311,7 +311,7 @@ export class LevelScene extends Phaser.Scene {
         const { w, h } = this.level;
         const board = await snapshot(this, this.ox - 30, this.oy - 30, this.cs * w + 60, this.cs * h + 72);
         return drawCard(this, {
-          w: 1200, h: 630, board, title: 'Arrow Cats', subtitle: 'A cozy puzzle: untangle the cats',
+          w: 1200, h: 630, board, title: 'Kittangle', subtitle: 'A cozy puzzle: untangle the cats',
           extra: 'New puzzle every day 🐾', cta: 'Play free',
         }).toDataURL('image/png');
       },

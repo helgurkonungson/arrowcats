@@ -1,4 +1,4 @@
-# Arrow Cats
+# Kittangle
 
 Logic puzzle: free all stretchy cats from the board without bumping them into each other.
 Prototype (no ads or purchases yet, simple procedural graphics).

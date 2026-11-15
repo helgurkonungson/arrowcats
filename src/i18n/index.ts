@@ -1,5 +1,5 @@
 const ru = {
-  title: 'Arrow Cats',
+  title: 'Kittangle',
   play: 'Играть · уровень {n}',
   daily: 'Ежедневный пазл',
   dailyDone: 'Пазл дня пройден ✓',
@@ -141,7 +141,7 @@ const ru = {
 type Dict = typeof ru;
 
 const en: Dict = {
-  title: 'Arrow Cats',
+  title: 'Kittangle',
   play: 'Play · level {n}',
   daily: 'Daily puzzle',
   dailyDone: 'Daily solved ✓',

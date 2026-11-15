@@ -1,6 +1,6 @@
-# Arrow Cats – notes for Claude
+# Kittangle – notes for Claude
 
-Full product context and rules live in the claude.ai project "ArrowCats" (project instructions + `claude/status.md`). Key rules:
+Full product context and rules live in the claude.ai project "Kittangle" (project instructions + `claude/status.md`). Key rules:
 - Reply to the user in Russian, no "ё", no long dash "—", few colons.
 - `src/core` stays pure TS and fully tested (`npm test`); every generated level must be solvable.
 - Game code talks to portals/stores only through `src/platform/IPlatform.ts`.

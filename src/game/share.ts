@@ -179,7 +179,7 @@ export interface DailyShare {
 export function dailyText(d: DailyShare) {
   const hearts = '❤️'.repeat(d.hearts) + '🤍'.repeat(3 - d.hearts);
   return [
-    `🐱 Arrow Cats · ${t('dailyTitle', { n: d.num })}`,
+    `🐱 Kittangle · ${t('dailyTitle', { n: d.num })}`,
     `${t(d.hearts === 3 ? 'shareBrag3' : 'shareBrag', { t: fmtTime(d.time) })} ${hearts}`,
     tapPattern(d.taps),
     d.streak > 1 ? t('shareStreak', { n: d.streak }) : '',
@@ -193,7 +193,7 @@ export function dailyText(d: DailyShare) {
 export function prepareDailyShare(s: Phaser.Scene, d: DailyShare) {
   const text = dailyText(d);
   const card = drawCard(s, {
-    w: 1080, h: 1080, board: d.board, title: 'Arrow Cats', subtitle: t('dailyTitle', { n: d.num }),
+    w: 1080, h: 1080, board: d.board, title: 'Kittangle', subtitle: t('dailyTitle', { n: d.num }),
     stickerText: fmtTime(d.time), hearts: d.hearts, extra: d.streak > 1 ? `🔥 ${d.streak}` : undefined,
     cta: t('shareCardCta', { t: fmtTime(d.time) }),
   });
@@ -204,7 +204,7 @@ export function prepareDailyShare(s: Phaser.Scene, d: DailyShare) {
 
 async function send(s: Phaser.Scene, text: string, blob: Blob | null) {
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  const file = blob ? new File([blob], 'arrowcats.png', { type: 'image/png' }) : null;
+  const file = blob ? new File([blob], 'kittangle.png', { type: 'image/png' }) : null;
   try {
     if (file && nav.share && nav.canShare?.({ files: [file] })) return await nav.share({ files: [file], text });
     if (nav.share) return await nav.share({ text });
