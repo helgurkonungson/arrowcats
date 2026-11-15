@@ -7,6 +7,7 @@ import { dailyNumber, getDaily, getLevel, TUTORIAL_COUNT } from '../core/levels'
 import { prevDate } from '../core/save';
 import { Cat, Cell, DX, DY, Level } from '../core/types';
 import { headDir } from '../core/board';
+import { CHAPTERS, nextTask, progress, starsToScene } from '../core/meta';
 import { t } from '../i18n';
 import { drawCat, Mood } from './drawCat';
 import { sfx } from './sfx';
@@ -405,9 +406,15 @@ export class LevelScene extends Phaser.Scene {
     const d = this.d;
     const lines: string[] = [];
     let reward = 0;
+    let stars = 0;
+    this.markFlawless();
     if (d.mode === 'level') {
       reward = levelReward(d.n, !!this.level.hard);
-      if (d.n === save.level) save.level = d.n + 1;
+      if (d.n === save.level) {
+        save.level = d.n + 1;
+        stars = this.level.hard ? 2 : 1;
+      }
+      save.best[d.n] = Math.max(save.best[d.n] ?? 0, this.hearts);
       platform.track('level_complete', { id: this.level.id, hearts: this.hearts });
     } else {
       const time = (this.time.now - this.startTime) / 1000;
@@ -417,6 +424,7 @@ export class LevelScene extends Phaser.Scene {
         save.daily.last = d.date;
         const bonus = DAILY_STREAK_BONUS[save.daily.streak] ?? 0;
         reward = DAILY_REWARD + bonus;
+        stars = 1;
         if (bonus) lines.push(t('streakBonus', { n: bonus }));
       }
       lines.unshift(t('dailyResult', { t: fmtTime(time), h: this.hearts }), t('streak', { n: save.daily.streak }));
@@ -428,22 +436,41 @@ export class LevelScene extends Phaser.Scene {
     for (const b of new Set(this.rescued)) {
       if (unlockBreed(b)) lines.push(t('newBreed', { name: t('breed_' + BREEDS[b].key) }));
     }
+    save.stars += stars;
     persist();
-    lines.unshift(t('winFish', { n: total }));
+    const goal = nextTask(save.tasksDone);
+    const need = starsToScene(save.tasksDone, save.stars);
+    if (goal) lines.push(need === 0 ? t('sceneReady') : t('toScene', { n: need }));
+    lines.unshift(t('winFish', { n: total }) + (stars ? '   ' + t('winStars', { n: stars }) : ''));
+    if (d.mode === 'level') lines.splice(1, 0, t('rating', { h: '♥'.repeat(this.hearts) + '♡'.repeat(3 - this.hearts) }));
+    const cafeBtn = goal && save.stars >= goal.cost
+      ? [{ label: t('toCafe'), color: C.pink, onClick: () => this.scene.start('Cafe') }]
+      : [];
 
     const btns = d.mode === 'level'
       ? [
         { label: t('next'), color: C.green, onClick: () => this.scene.restart({ mode: 'level', n: d.n + 1 }) },
+        ...cafeBtn,
         { label: t('menu'), color: C.gray, onClick: () => this.scene.start('Menu') },
       ]
       : [
         { label: t('share'), color: C.blue, onClick: () => this.shareDaily() },
+        ...cafeBtn,
         { label: t('menu'), color: C.gray, onClick: () => this.scene.start('Menu') },
       ];
     this.time.delayedCall(350, () => modal(this, t('winTitle'), lines, btns));
   }
 
+  /** A lost heart in the current chapter breaks its golden-frame run. */
+  private markFlawless() {
+    if (this.d.mode !== 'level' || this.hearts >= 3) return;
+    const ch = CHAPTERS[progress(save.tasksDone).chapter];
+    if (ch) save.flawless[ch.key] = false;
+  }
+
   private lose() {
+    this.markFlawless();
+    persist();
     platform.gameplayStop();
     sfx.lose();
     platform.track('level_fail', { id: this.level.id });

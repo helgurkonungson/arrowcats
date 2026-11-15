@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import { loginReward } from '../core/content';
 import { utcDate } from '../core/levels';
+import { CHAPTERS, INTRO, nextTask, progress, starsToScene } from '../core/meta';
 import { prevDate } from '../core/save';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { setMuted, sfx } from './sfx';
 import { addFish, persist, save } from './state';
-import { button, C, fishLabel, modal, txt, W } from './ui';
+import { button, C, dialog, fishLabel, modal, toast, txt, W } from './ui';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +17,7 @@ export class MenuScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(C.bg);
     const fish = fishLabel(this, W - 30, 60, () => save.fish);
+    txt(this, W - 30, 112, t('stars', { n: save.stars }), 34).setOrigin(1, 0.5);
 
     txt(this, W / 2, 200, t('title'), 84);
     const g = this.add.graphics();
@@ -29,7 +31,17 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start('Level', { mode: 'level', n: save.level }), { color: C.green, size: 40 });
     button(this, W / 2, 770, 520, 110, (dailyDone ? '' : '📅 ') + t(dailyDone ? 'dailyDone' : 'daily'), () =>
       this.scene.start('Level', { mode: 'daily', date: today }), { color: C.blue });
-    button(this, W / 2, 910, 520, 110, '☕ ' + t('cafe'), () => this.scene.start('Cafe'), { color: C.pink });
+    const task = nextTask(save.tasksDone);
+    const ready = !!task && save.stars >= task.cost;
+    const cafeBtn = button(this, W / 2, 910, 520, 110, '☕ ' + t('cafe') + (ready ? '  ❗' : ''), () => this.scene.start('Cafe'), {
+      color: C.pink,
+    });
+    if (ready) this.tweens.add({ targets: cafeBtn, scale: 1.04, duration: 600, yoyo: true, repeat: -1 });
+    if (task) {
+      const p = progress(save.tasksDone);
+      const need = starsToScene(save.tasksDone, save.stars);
+      txt(this, W / 2, 520, `${t('chapter_' + CHAPTERS[p.chapter].key)} · ${need ? t('toScene', { n: need }) : t('sceneReady')}`, 26);
+    }
     button(this, W / 2, 1050, 520, 110, '🐾 ' + t('collection'), () => this.scene.start('Collection'), {
       color: C.purple,
     });
@@ -43,6 +55,13 @@ export class MenuScene extends Phaser.Scene {
     }, { color: C.gray });
     sound.setScale(0.9);
 
+    // first launch: story intro instead of a stack of popups
+    const introNow = !save.introSeen;
+    if (introNow) {
+      save.introSeen = true;
+      persist();
+      dialog(this, INTRO.map((who, i) => ({ who, name: t('who_' + who), text: t('intro_' + i) })), t('tapToContinue'), () => {});
+    }
     // daily login reward
     if (save.login.last !== today) {
       const streak = save.login.last === prevDate(today) ? save.login.streak + 1 : 1;
@@ -51,9 +70,13 @@ export class MenuScene extends Phaser.Scene {
       addFish(r);
       fish.refresh();
       sfx.coin();
-      const close = modal(this, '🎁', [t('loginReward', { n: r, d: streak })], [
-        { label: 'OK', color: C.green, onClick: () => close() },
-      ]);
+      if (introNow) {
+        toast(this, t('loginReward', { n: r, d: streak }), 300);
+      } else {
+        const close = modal(this, '🎁', [t('loginReward', { n: r, d: streak })], [
+          { label: 'OK', color: C.green, onClick: () => close() },
+        ]);
+      }
     }
   }
 }

@@ -54,10 +54,9 @@ export function levelParams(n: number): GenParams {
     minLen: 2,
     maxLen: clamp(3 + Math.floor(tier / 20), 3, 8),
     turn: clamp(0.15 + tier * 0.003, 0.15, 0.45),
-    boxes: n >= 40 && n % 3 === 0 ? 1 + (n % 2) : 0,
-    sleepy: n === 25 ? 0.3 : n > 25 ? 0.08 : 0,
+    boxes: n >= 31 && n % 3 === 1 ? 1 + (n % 2) : 0,
+    sleepy: n === 16 ? 0.3 : n > 16 ? 0.08 : 0,
     breeds: Array.from({ length: clamp(3 + Math.floor(n / 6), 3, COMMON) }, (_, i) => i),
-    rare: hard ? rareFor(n / 10 - 1) : undefined,
     depth: clamp(2 + Math.floor(tier / 10) + saw + (hard ? 2 : 0), 1, 12),
   };
 }
@@ -89,8 +88,7 @@ export function getDaily(date: string): Level {
   const key = 'D' + date;
   let lv = cache.get(key);
   if (!lv) {
-    const num = dailyNumber(date);
-    const p = { ...levelParams(35), sleepy: 0.1, breeds: [...Array(COMMON).keys()], rare: rareFor(num) };
+    const p = { ...levelParams(35), sleepy: 0.1, breeds: [...Array(COMMON).keys()] };
     lv = generateLevel(hashStr('daily' + date), p, key);
     cache.set(key, lv);
   }

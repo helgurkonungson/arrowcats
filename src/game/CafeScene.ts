@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { CAFE_ROOMS, CAFE_SLOTS, CAFE_VARIANTS, slotCost } from '../core/content';
+import { CAFE_ROOMS, CAFE_SLOTS, CAFE_VARIANTS } from '../core/content';
+import { CHAPTERS, doTask, nextTask, progress } from '../core/meta';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { sfx } from './sfx';
-import { addFish, persist, platform, save } from './state';
-import { button, C, fishLabel, modal, toast, txt, W } from './ui';
+import { persist, platform, save } from './state';
+import { button, C, dialog, modal, toast, txt, W } from './ui';
 
 type Rect = { x: number; y: number; w: number; h: number };
 const SLOT_RECT: Record<(typeof CAFE_SLOTS)[number], Rect> = {
@@ -25,11 +26,11 @@ export class CafeScene extends Phaser.Scene {
   }
 
   init(d: { room?: number }) {
-    this.room = d.room ?? 0;
+    this.room = d.room ?? Math.min(progress(save.tasksDone).chapter, CAFE_ROOMS - 1);
   }
 
   private roomUnlocked(r: number) {
-    return r === 0 || save.cafe[r - 1].every((v) => v >= 0);
+    return r === 0 || CHAPTERS[r - 1].tasks.every((k) => save.tasksDone.includes(k.id));
   }
 
   create() {
@@ -40,11 +41,12 @@ export class CafeScene extends Phaser.Scene {
     g.lineStyle(6, C.inkN, 1).lineBetween(0, 660, W, 660);
 
     button(this, 70, 70, 90, 80, '‹', () => this.scene.start('Menu'), { color: C.gray, size: 48 });
-    const fish = fishLabel(this, W - 30, 70, () => save.fish);
-    txt(this, W / 2, 70, `${t('cafe')} · ${t('room', { n: r + 1 })}`, 36);
-    if (r > 0) button(this, 180, 130, 70, 56, '◀', () => this.scene.restart({ room: r - 1 }), { color: C.gray, size: 28 });
+    txt(this, W / 2, 70, t('chapter_' + CHAPTERS[r].key), 34);
+    txt(this, W - 30, 70, t('stars', { n: save.stars }), 34).setOrigin(1, 0.5);
+    txt(this, W / 2, 128, t('catsInCafe', { n: save.breeds.length }), 24);
+    if (r > 0) button(this, 90, 130, 70, 56, '◀', () => this.scene.restart({ room: r - 1 }), { color: C.gray, size: 28 });
     if (r < CAFE_ROOMS - 1)
-      button(this, W - 180, 130, 70, 56, '▶', () => {
+      button(this, W - 90, 130, 70, 56, '▶', () => {
         if (!this.roomUnlocked(r + 1)) return toast(this, t('roomLocked'));
         this.scene.restart({ room: r + 1 });
       }, { color: C.gray, size: 28 });
@@ -59,25 +61,79 @@ export class CafeScene extends Phaser.Scene {
         hit.on('pointerdown', () => this.pickVariant(i));
       } else {
         const ph = this.add.graphics();
-        ph.fillStyle(0xffffff, 0.35).fillRoundedRect(rect.x - rect.w / 2, rect.y - rect.h / 2, rect.w, rect.h, 14);
-        ph.lineStyle(3, C.inkN, 0.5).strokeRoundedRect(rect.x - rect.w / 2, rect.y - rect.h / 2, rect.w, rect.h, 14);
-        const cost = slotCost(r, i);
-        button(this, rect.x, rect.y, Math.max(130, Math.min(rect.w, 170)), 64, '+ ' + t('buy', { n: cost }), () => {
-          if (save.cafe[r][i] >= 0) return;
-          if (save.fish < cost) return toast(this, t('noFish'));
-          addFish(-cost);
-          save.cafe[r][i] = 0;
-          persist();
-          sfx.coin();
-          platform.track('cafe_buy', { room: r, slot: key });
-          this.scene.restart({ room: r });
-        }, { color: C.primary, size: 24, disabled: save.fish < cost });
+        ph.fillStyle(0xffffff, 0.3).fillRoundedRect(rect.x - rect.w / 2, rect.y - rect.h / 2, rect.w, rect.h, 14);
+        ph.lineStyle(3, C.inkN, 0.35).strokeRoundedRect(rect.x - rect.w / 2, rect.y - rect.h / 2, rect.w, rect.h, 14);
       }
     });
 
     this.spawnCats();
-    txt(this, W / 2, 1180, t('catsInCafe', { n: save.breeds.length }), 30);
-    fish.refresh();
+    this.drawTaskPanel();
+  }
+
+  private drawTaskPanel() {
+    const g = this.add.graphics();
+    g.fillStyle(C.panel, 1).fillRoundedRect(20, 1125, W - 40, 140, 26);
+    g.lineStyle(4, C.inkN, 1).strokeRoundedRect(20, 1125, W - 40, 140, 26);
+    const p = progress(save.tasksDone);
+    if (p.chapter >= CHAPTERS.length) {
+      txt(this, W / 2, 1195, t('allDone'), 28);
+      return;
+    }
+    if (CHAPTERS[p.chapter].room !== this.room) {
+      txt(this, W / 2 - 60, 1195, t('chapterDone'), 30);
+      button(this, W - 120, 1195, 140, 80, '▶', () => this.scene.restart({ room: CHAPTERS[p.chapter].room }), {
+        color: C.green, size: 34,
+      });
+      return;
+    }
+    const ch = CHAPTERS[p.chapter];
+    const task = ch.tasks[p.task];
+    txt(this, W / 2, 1152, t('chapterProgress', { name: t('chapter_' + ch.key), a: p.task, b: ch.tasks.length }), 22, '#9b8a7a');
+    const name = task.kind === 'decor'
+      ? t('task_decor', { name: t('slot_' + CAFE_SLOTS[task.slot!]) })
+      : t('task_' + task.id);
+    txt(this, 220, 1210, name, 28).setWordWrapWidth(360);
+    button(this, W - 150, 1205, 240, 80, t('doTask', { n: task.cost }), () => this.perform(), {
+      color: C.green, size: 28, disabled: save.stars < task.cost,
+    });
+  }
+
+  private perform() {
+    const task = nextTask(save.tasksDone);
+    if (!task) return;
+    if (save.stars < task.cost) return toast(this, t('noStars'), 1060);
+    const res = doTask(save)!;
+    const ch = CHAPTERS[res.chapter];
+    if (task.kind === 'decor') save.cafe[ch.room][task.slot!] = 0;
+    persist();
+    sfx.coin();
+    platform.track('cafe_task', { id: task.id });
+    if (task.kind === 'story') toast(this, `${t('done_story')} ${t('task_' + task.id)}`, 1060);
+
+    const finish = () => {
+      if (!res.chapterDone) return this.scene.restart({ room: ch.room });
+      const lines = [t('chapterDone')];
+      if (save.flawless[ch.key] !== false && !save.frames.includes(ch.resident)) {
+        save.frames.push(ch.resident);
+        lines.push(t('goldenFrame', { name: t('who_' + ch.resident) }));
+      }
+      persist();
+      sfx.win();
+      const close = modal(this, '🎉', lines, [{
+        label: 'OK', color: C.green,
+        onClick: () => {
+          close();
+          this.scene.restart({ room: Math.min(res.chapter + 1, CAFE_ROOMS - 1) });
+        },
+      }]);
+    };
+    this.time.delayedCall(450, () => {
+      if (res.scene < 0) return finish();
+      const lines = ch.scenes[res.scene].map((who, i) => ({
+        who, name: t('who_' + who), text: t(`story_${ch.key}_${res.scene}_${i}`),
+      }));
+      dialog(this, lines, t('tapToContinue'), finish);
+    });
   }
 
   private pickVariant(slot: number) {

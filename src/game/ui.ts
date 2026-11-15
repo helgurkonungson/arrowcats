@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { drawCat } from './drawCat';
 import { sfx } from './sfx';
 
 export const W = 720;
@@ -108,4 +109,49 @@ export function fishLabel(s: Phaser.Scene, x: number, y: number, get: () => numb
   const refresh = () => t.setText(`🐟 ${get()}`);
   refresh();
   return { text: t, refresh };
+}
+
+const SPEAKER_BREED: Record<string, number> = { murr: 1, bun: 0, luna: 2 };
+
+export interface DialogLine {
+  who: string;
+  name: string;
+  text: string;
+}
+
+/** Story dialog at the bottom of the screen; tap anywhere to advance. */
+export function dialog(s: Phaser.Scene, lines: DialogLine[], hint: string, onDone: () => void) {
+  const c = s.add.container(0, 0).setDepth(150);
+  const dim = s.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.35).setInteractive();
+  const g = s.add.graphics();
+  const top = H - 430;
+  g.fillStyle(C.panel, 1).fillRoundedRect(30, top, W - 60, 360, 30);
+  g.lineStyle(5, C.inkN, 1).strokeRoundedRect(30, top, W - 60, 360, 30);
+  const pg = s.add.graphics();
+  const name = txt(s, 190, top + 50, '', 34).setOrigin(0, 0.5);
+  const body = s.add.text(60, top + 135, '', {
+    fontFamily: FONT, fontSize: '31px', color: C.ink, wordWrap: { width: W - 120 }, lineSpacing: 6,
+  });
+  const tip = txt(s, W / 2, H - 100, hint, 22, '#9b8a7a');
+  c.add([dim, g, pg, name, body, tip]);
+  let i = 0;
+  const show = () => {
+    const l = lines[i];
+    name.setText(l.name);
+    body.setText(l.text);
+    drawCat(pg, [{ x: 105, y: top + 45 }, { x: 105, y: top + 62 }], SPEAKER_BREED[l.who] ?? 0, 90, 'happy');
+    if (l.who === 'murr') {
+      pg.lineStyle(4, 0x8a6a2a, 1).strokeCircle(92, top + 40, 10).strokeCircle(118, top + 40, 10).lineBetween(102, top + 40, 108, top + 40);
+    }
+  };
+  show();
+  dim.on('pointerdown', (_p: unknown, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+    ev.stopPropagation();
+    sfx.click();
+    i++;
+    if (i >= lines.length) {
+      c.destroy();
+      onDone();
+    } else show();
+  });
 }

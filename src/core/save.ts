@@ -6,9 +6,19 @@ export interface DailyResult {
 }
 
 export interface SaveData {
-  v: 1;
+  v: 2;
   level: number;
   fish: number;
+  stars: number;
+  /** completed café task ids, see core/meta.ts */
+  tasksDone: string[];
+  /** best hearts left per level number */
+  best: Record<number, number>;
+  /** chapter key -> still flawless (no lost hearts) */
+  flawless: Record<string, boolean>;
+  /** residents whose golden frame is unlocked */
+  frames: string[];
+  introSeen: boolean;
   breeds: number[];
   /** cafe[room][slot] = chosen variant, -1 not bought */
   cafe: number[][];
@@ -17,13 +27,19 @@ export interface SaveData {
   muted: boolean;
 }
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export function defaultSave(): SaveData {
   return {
-    v: 1,
+    v: 2,
     level: 1,
     fish: 0,
+    stars: 0,
+    tasksDone: [],
+    best: {},
+    flawless: {},
+    frames: [],
+    introSeen: false,
     breeds: [],
     cafe: Array.from({ length: CAFE_ROOMS }, () => CAFE_SLOTS.map(() => -1)),
     daily: { last: '', streak: 0, results: {} },
@@ -36,15 +52,26 @@ export function defaultSave(): SaveData {
 export function migrate(raw: unknown): SaveData {
   const base = defaultSave();
   if (!raw || typeof raw !== 'object') return base;
-  const s = raw as Partial<SaveData>;
+  const s = raw as Omit<Partial<SaveData>, 'v'> & { v?: number };
+  const cafe = base.cafe.map((room, r) => room.map((v, i) => s.cafe?.[r]?.[i] ?? v));
+  // v1 -> v2: décor bought with fish counts as done chapter tasks
+  const tasksDone = s.tasksDone ?? (s.v === 1 ? v1Tasks(cafe) : []);
   return {
     ...base,
     ...s,
-    v: 1,
+    v: 2,
+    tasksDone,
     daily: { ...base.daily, ...(s.daily ?? {}) },
     login: { ...base.login, ...(s.login ?? {}) },
-    cafe: base.cafe.map((room, r) => room.map((v, i) => s.cafe?.[r]?.[i] ?? v)),
+    cafe,
   };
+}
+
+function v1Tasks(cafe: number[][]): string[] {
+  const keys = ['hall', 'attic'];
+  const out: string[] = [];
+  cafe.forEach((room, r) => room.forEach((v, i) => v >= 0 && keys[r] && out.push(`${keys[r]}_d${i}`)));
+  return out;
 }
 
 export const prevDate = (date: string) =>

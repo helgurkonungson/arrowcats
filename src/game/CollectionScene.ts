@@ -14,6 +14,8 @@ export class CollectionScene extends Phaser.Scene {
     button(this, 70, 70, 90, 80, '‹', () => this.scene.start('Menu'), { color: C.gray, size: 48 });
     txt(this, W / 2, 70, t('collection'), 40);
     txt(this, W / 2, 140, t('collectionProgress', { a: save.breeds.length, b: BREEDS.length }), 30);
+    if (save.frames.length)
+      txt(this, W / 2, 1230, t('frames', { list: save.frames.map((f) => t('who_' + f)).join(', ') }), 26, '#c08a00');
 
     BREEDS.forEach((b, i) => {
       const cx = 130 + (i % 3) * 230;

@@ -66,3 +66,35 @@ describe('save', () => {
     expect(s.cafe[0][1]).toBe(-1);
   });
 });
+
+import { CHAPTERS, chapterCost, doTask, nextTask, progress, starsToScene } from '../src/core/meta';
+
+describe('meta', () => {
+  it('chapters cost 13 stars with scenes after tasks 3, 6 and 8', () => {
+    for (const c of CHAPTERS) {
+      expect(chapterCost(c)).toBe(13);
+      expect(c.sceneAfter).toEqual([2, 5, 7]);
+      expect(c.scenes.length).toBe(3);
+    }
+  });
+
+  it('walks through chapters, scenes and stars', () => {
+    const st = { stars: 0, tasksDone: [] as string[] };
+    expect(starsToScene(st.tasksDone, 0)).toBe(5); // 1 + 2 + 2
+    expect(doTask(st)).toBeNull();
+    st.stars = 100;
+    const scenes: string[] = [];
+    let r;
+    while ((r = doTask(st))) if (r.scene >= 0) scenes.push(`${r.chapter}:${r.scene}${r.chapterDone ? '!' : ''}`);
+    expect(scenes).toEqual(['0:0', '0:1', '0:2!', '1:0', '1:1', '1:2!']);
+    expect(st.stars).toBe(100 - 26);
+    expect(nextTask(st.tasksDone)).toBeNull();
+    expect(progress(st.tasksDone).chapter).toBe(CHAPTERS.length);
+  });
+
+  it('migrates v1 cafe purchases into done tasks', () => {
+    const s = migrate({ v: 1, cafe: [[0, 1, -1, -1, -1]] });
+    expect(s.tasksDone).toEqual(['hall_d0', 'hall_d1']);
+    expect(s.v).toBe(2);
+  });
+});
