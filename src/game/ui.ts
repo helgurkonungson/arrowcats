@@ -172,17 +172,25 @@ function scrim(s: Phaser.Scene, alpha = 0.55) {
 export function modal(s: Phaser.Scene, title: string, lines: string[], buttons: ModalBtn[]) {
   const c = s.add.container(0, 0).setDepth(100);
   const dim = scrim(s);
-  const ph = 190 + lines.length * 52 + buttons.length * 118;
-  const top = H / 2 - ph / 2;
+  const ph0 = 190 + lines.length * 52 + buttons.length * 118;
+  let top = H / 2 - ph0 / 2;
   const g = s.add.graphics();
+  const tt = txt(s, W / 2, 0, title, 46);
+  if (tt.width > W - 180) tt.setScale((W - 180) / tt.width);
+  c.add([dim, g, tt]);
+  // lines may wrap: stack them by their real height
+  const texts = lines.map((l) => txt(s, W / 2, 0, l, 32).setWordWrapWidth(W - 180, true).setOrigin(0.5, 0));
+  const extra = texts.reduce((n, tx) => n + Math.max(0, tx.height - 44), 0);
+  top -= extra / 2;
+  let ly = top + 128;
+  texts.forEach((tx) => { tx.y = ly; ly += Math.max(52, tx.height + 8); });
+  c.add(texts);
+  const by = top + 160 + lines.length * 52 + extra + 46;
+  const ph = ph0 + extra;
   panel(g, 60, top, W - 120, ph, 40);
   g.fillStyle(C.latte, 1).fillRoundedRect(63, top + 3, W - 126, 104, { tl: 37, tr: 37, bl: 0, br: 0 });
   g.lineStyle(3, 0xe2c7a4, 1).lineBetween(64, top + 107, W - 64, top + 107);
-  const tt = txt(s, W / 2, top + 56, title, 46);
-  if (tt.width > W - 180) tt.setScale((W - 180) / tt.width);
-  c.add([dim, g, tt]);
-  lines.forEach((l, i) => c.add(txt(s, W / 2, top + 150 + i * 52, l, 32).setWordWrapWidth(W - 180, true)));
-  const by = top + 160 + lines.length * 52 + 46;
+  tt.y = top + 56;
   buttons.forEach((b, i) =>
     c.add(button(s, W / 2, by + i * 118, 460, i === 0 ? 96 : 84, b.label, b.onClick, {
       color: b.color, disabled: b.disabled, size: i === 0 ? 36 : 32,

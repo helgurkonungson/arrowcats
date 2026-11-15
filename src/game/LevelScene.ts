@@ -16,6 +16,8 @@ import { addFish, grantPaws, persist, platform, save, unlockBreed } from './stat
 import { PAWS } from '../core/live';
 import { button, C, fishLabel, H, modal, toast, txt, W, backButton } from './ui';
 import { icon, iconKey, IconName } from './icons';
+import { fmtTime, Tap } from '../core/share';
+import { challenge, drawCard, prepareDailyShare, snapshot } from './share';
 
 export type LevelData = { mode: 'level'; n: number } | { mode: 'daily'; date: string };
 
@@ -31,7 +33,6 @@ interface CatView {
   acc?: Phaser.GameObjects.Image;
 }
 
-const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export class LevelScene extends Phaser.Scene {
   private d!: LevelData;
@@ -49,6 +50,8 @@ export class LevelScene extends Phaser.Scene {
   private rescued: number[] = [];
   private startTime = 0;
   private ended = false;
+  private taps: Tap[] = [];
+  private boardShot: Promise<HTMLImageElement | null> = Promise.resolve(null);
   private heartIcons: Phaser.GameObjects.Image[] = [];
   private timerText?: Phaser.GameObjects.Text;
   private fish!: { refresh: () => void };
@@ -71,6 +74,9 @@ export class LevelScene extends Phaser.Scene {
     this.rescued = [];
     this.ended = false;
     this.timerText = undefined;
+    this.taps = [];
+    this.sendShare = undefined;
+    this.boardShot = Promise.resolve(null);
   }
 
   create() {
@@ -223,6 +229,12 @@ export class LevelScene extends Phaser.Scene {
     if (d.mode === 'daily') {
       icon(this, 'clock', W - 150, 132, 34);
       this.timerText = txt(this, W - 128, 133, '', 28).setOrigin(0, 0.5);
+      const ch = challenge();
+      if (ch && ch.date === d.date) txt(this, 24, 133, t('challengeTarget', { t: fmtTime(ch.time) }), 26, '#c9482a').setOrigin(0, 0.5);
+      // untouched board for the share card, taken after the first frame
+      const { w, h } = this.level;
+      this.boardShot = new Promise((res) => this.time.delayedCall(80, () =>
+        snapshot(this, this.ox - 30, this.oy - 30, this.cs * w + 60, this.cs * h + 72).then(res)));
     }
 
     const by = H - 118;
@@ -293,6 +305,16 @@ export class LevelScene extends Phaser.Scene {
       }),
       fish: () => this.wallet(),
       state: () => ({ ended: this.ended, hearts: this.hearts, cats: this.views.size, id: this.level.id }),
+      share: () => this.shareDaily(),
+      // link preview image for index.html (tools/og.mjs): live board + palette, follows the art style
+      og: async () => {
+        const { w, h } = this.level;
+        const board = await snapshot(this, this.ox - 30, this.oy - 30, this.cs * w + 60, this.cs * h + 72);
+        return drawCard(this, {
+          w: 1200, h: 630, board, title: 'Arrow Cats', subtitle: 'A cozy puzzle: untangle the cats',
+          extra: 'New puzzle every day 🐾', cta: 'Play free',
+        }).toDataURL('image/png');
+      },
     };
   }
 
@@ -353,6 +375,7 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private exit(v: CatView, steps: number) {
+    this.taps.push('exit');
     const cat = v.cat;
     this.board.remove(cat.id);
     v.busy = true;
@@ -396,6 +419,7 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private bonk(v: CatView, steps: number, blocker: number) {
+    this.taps.push('bonk');
     v.busy = true;
     v.mood = 'angry';
     this.hearts--;
@@ -425,6 +449,7 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private feed(v: CatView) {
+    this.taps.push('feed');
     this.board.remove(v.cat.id);
     v.busy = true;
     v.mood = 'happy';
@@ -442,6 +467,7 @@ export class LevelScene extends Phaser.Scene {
     v.hint = true;
     this.redraw(v);
     this.tweens.add({ targets: v.g, alpha: 0.55, duration: 250, yoyo: true, repeat: 3 });
+    this.taps.push('hint');
     platform.track('booster_used', { type: 'hint' });
   }
 
@@ -495,6 +521,12 @@ export class LevelScene extends Phaser.Scene {
         if (bonus) lines.push(t('streakBonus', { n: bonus }));
       }
       lines.unshift(t('dailyResult', { t: fmtTime(time), h: this.hearts }), t('dailyBest', { t: fmtTime(save.dailyBest || time) }), t('streak', { n: save.daily.streak }));
+      const ch = challenge();
+      if (ch && ch.date === d.date) {
+        const beat = this.hearts > ch.hearts || (this.hearts === ch.hearts && time < ch.time);
+        lines.unshift(beat ? t('challengeWin', { t: fmtTime(time), f: fmtTime(ch.time) }) : t('challengeLose', { f: fmtTime(ch.time) }));
+        platform.track('challenge_done', { beat });
+      }
       platform.track('daily_complete', { date: d.date, hearts: this.hearts, time });
     }
     const total = this.earned + reward;
@@ -526,10 +558,20 @@ export class LevelScene extends Phaser.Scene {
         { label: t('menu'), color: C.gray, onClick: () => this.scene.start('Menu') },
       ]
       : [
-        { label: t('share'), color: C.blue, onClick: () => this.shareDaily() },
+        { label: t('share'), color: C.primary, onClick: () => this.shareDaily() },
         ...cafeBtn,
         { label: t('menu'), color: C.gray, onClick: () => this.scene.start('Menu') },
       ];
+    if (d.mode === 'daily') {
+      // card is built before the tap: mobile browsers only allow share() right inside the gesture
+      const r = save.daily.results[d.date];
+      void this.boardShot.then((board) => {
+        this.sendShare = prepareDailyShare(this, {
+          date: d.date, num: dailyNumber(d.date), time: r.time, hearts: r.hearts,
+          taps: this.taps, streak: save.daily.streak, board,
+        });
+      });
+    }
     this.time.delayedCall(350, () => modal(this, t('winTitle'), lines, btns));
   }
 
@@ -567,18 +609,12 @@ export class LevelScene extends Phaser.Scene {
     ]);
   }
 
+  private sendShare?: () => Promise<void>;
+
   private shareDaily() {
-    if (this.d.mode !== 'daily') return;
-    const r = save.daily.results[this.d.date];
-    const hearts = r?.hearts ?? this.hearts;
-    const text = `Arrow Cats #${dailyNumber(this.d.date)} 🐱\n${'❤️'.repeat(hearts)}${'🖤'.repeat(3 - hearts)} ⏱ ${fmtTime(r?.time ?? 0)}\n${location.origin}${location.pathname}`;
+    if (this.d.mode !== 'daily' || !this.sendShare) return;
     platform.track('share', { date: this.d.date });
-    const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> };
-    if (nav.share) {
-      nav.share({ text }).catch(() => {});
-    } else {
-      navigator.clipboard?.writeText(text).then(() => toast(this, t('copied')), () => toast(this, text));
-    }
+    void this.sendShare();
   }
 
   private leave() {

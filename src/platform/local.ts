@@ -37,6 +37,13 @@ export class LocalPlatform implements IPlatform {
     return [];
   }
   submitScore() {}
+  shareUrl(params: Record<string, string>) {
+    const q = new URLSearchParams({ ...params, utm_source: 'share' });
+    return `${location.origin}${location.pathname}?${q}`;
+  }
+  launchParams() {
+    return Object.fromEntries(new URLSearchParams(location.search));
+  }
   track(event: string, params?: Record<string, unknown>) {
     if (import.meta.env.DEV) console.debug('[track]', event, params ?? '');
   }

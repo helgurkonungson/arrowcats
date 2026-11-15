@@ -1,0 +1,383 @@
+{
+ "S01": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "heads/head_ginger_calm",
+   "heads/head_ginger_happy",
+   "heads/head_ginger_offended",
+   "heads/head_gray_calm",
+   "heads/head_gray_happy",
+   "heads/head_gray_offended",
+   "heads/head_black_calm",
+   "heads/head_black_happy",
+   "heads/head_black_offended"
+  ]
+ },
+ "S02": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "heads/head_white_calm",
+   "heads/head_white_happy",
+   "heads/head_white_offended",
+   "heads/head_calico_calm",
+   "heads/head_calico_happy",
+   "heads/head_calico_offended",
+   "heads/head_siamese_calm",
+   "heads/head_siamese_happy",
+   "heads/head_siamese_offended"
+  ]
+ },
+ "S03": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "heads/head_british_calm",
+   "heads/head_british_happy",
+   "heads/head_british_offended",
+   "heads/head_tabby_calm",
+   "heads/head_tabby_happy",
+   "heads/head_tabby_offended",
+   "heads/head_mainecoon_calm",
+   "heads/head_mainecoon_happy",
+   "heads/head_mainecoon_offended"
+  ]
+ },
+ "S04": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "heads/head_sphynx_calm",
+   "heads/head_sphynx_happy",
+   "heads/head_sphynx_offended",
+   "heads/head_bengal_calm",
+   "heads/head_bengal_happy",
+   "heads/head_bengal_offended",
+   "heads/head_golden_calm",
+   "heads/head_golden_happy",
+   "heads/head_golden_offended"
+  ]
+ },
+ "S05": {
+  "rows": 3,
+  "cols": 4,
+  "names": [
+   "tails/tail_ginger",
+   "tails/tail_gray",
+   "tails/tail_black",
+   "tails/tail_white",
+   "tails/tail_calico",
+   "tails/tail_siamese",
+   "tails/tail_british",
+   "tails/tail_tabby",
+   "tails/tail_mainecoon",
+   "tails/tail_sphynx",
+   "tails/tail_bengal",
+   "tails/tail_golden"
+  ]
+ },
+ "S06": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "portraits/portrait_ginger",
+   "portraits/portrait_gray",
+   "portraits/portrait_black",
+   "portraits/portrait_white"
+  ]
+ },
+ "S07": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "portraits/portrait_calico",
+   "portraits/portrait_siamese",
+   "portraits/portrait_british",
+   "portraits/portrait_tabby"
+  ]
+ },
+ "S08": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "portraits/portrait_mainecoon",
+   "portraits/portrait_sphynx",
+   "portraits/portrait_bengal",
+   "portraits/portrait_golden"
+  ]
+ },
+ "S09": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "obstacles/box_0",
+   "obstacles/box_1",
+   "obstacles/box_2",
+   "overlays/sleep_zzz"
+  ]
+ },
+ "S10": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "accessories/acc_pompom_hat",
+   "accessories/acc_earmuffs",
+   "accessories/acc_scarf",
+   "accessories/acc_snow_crown"
+  ]
+ },
+ "S11": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "cafe/trophy_snowglobe",
+   "cafe/trophy_mitten",
+   "cafe/trophy_lantern",
+   "cafe/trophy_gingerbread_house"
+  ]
+ },
+ "S12": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "ui/icon_fish",
+   "ui/icon_heart_full",
+   "ui/icon_heart_empty",
+   "ui/icon_heart_plus",
+   "ui/icon_hint",
+   "ui/icon_feed",
+   "ui/icon_settings",
+   "ui/icon_sound_on",
+   "ui/icon_sound_off"
+  ]
+ },
+ "S13": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "ui/icon_home",
+   "ui/icon_cafe",
+   "ui/icon_collection",
+   "ui/icon_daily",
+   "ui/icon_share",
+   "ui/icon_lock",
+   "ui/icon_star",
+   "ui/icon_streak",
+   "ui/icon_gift"
+  ]
+ },
+ "S14": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "ui/icon_ad_video",
+   "ui/icon_shop",
+   "ui/icon_no_ads",
+   "ui/icon_fish_pack_s",
+   "ui/icon_fish_pack_l",
+   "ui/icon_starter_pack",
+   "ui/icon_paw_token",
+   "ui/icon_tips_jar_empty",
+   "ui/icon_tips_jar_full"
+  ]
+ },
+ "S15": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "ui/icon_calendar",
+   "ui/icon_trophy",
+   "ui/icon_visitor_bell",
+   "ui/icon_comfort",
+   "ui/badge_set_home",
+   "ui/badge_set_street",
+   "ui/badge_set_rare",
+   null,
+   null
+  ]
+ },
+ "S16": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "cafe/decor_r1_window_0",
+   "cafe/decor_r1_window_1",
+   "cafe/decor_r1_window_2",
+   "cafe/decor_r1_lamp_0",
+   "cafe/decor_r1_lamp_1",
+   "cafe/decor_r1_lamp_2",
+   "cafe/decor_r1_post_0",
+   "cafe/decor_r1_post_1",
+   "cafe/decor_r1_post_2"
+  ]
+ },
+ "S17": {
+  "rows": 2,
+  "cols": 3,
+  "names": [
+   "cafe/decor_r1_sofa_0",
+   "cafe/decor_r1_sofa_1",
+   "cafe/decor_r1_sofa_2",
+   "cafe/decor_r1_counter_0",
+   "cafe/decor_r1_counter_1",
+   "cafe/decor_r1_counter_2"
+  ]
+ },
+ "S18": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "cafe/decor_r2_window_0",
+   "cafe/decor_r2_window_1",
+   "cafe/decor_r2_window_2",
+   "cafe/decor_r2_lamp_0",
+   "cafe/decor_r2_lamp_1",
+   "cafe/decor_r2_lamp_2",
+   "cafe/decor_r2_post_0",
+   "cafe/decor_r2_post_1",
+   "cafe/decor_r2_post_2"
+  ]
+ },
+ "S19": {
+  "rows": 2,
+  "cols": 3,
+  "names": [
+   "cafe/decor_r2_sofa_0",
+   "cafe/decor_r2_sofa_1",
+   "cafe/decor_r2_sofa_2",
+   "cafe/decor_r2_counter_0",
+   "cafe/decor_r2_counter_1",
+   "cafe/decor_r2_counter_2"
+  ]
+ },
+ "S20": {
+  "rows": 1,
+  "cols": 3,
+  "names": [
+   "story/mentor_murr_calm",
+   "story/mentor_murr_happy",
+   "story/mentor_murr_surprised"
+  ]
+ },
+ "S21": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "story/resident_bun_calm",
+   "story/resident_bun_happy",
+   "story/resident_luna_calm",
+   "story/resident_luna_happy"
+  ]
+ },
+ "U01": {
+  "rows": 4,
+  "cols": 3,
+  "names": [
+   "heads/head_scottish_calm",
+   "heads/head_scottish_happy",
+   "heads/head_scottish_offended",
+   "heads/head_tuxedo_calm",
+   "heads/head_tuxedo_happy",
+   "heads/head_tuxedo_offended",
+   "heads/head_persian_calm",
+   "heads/head_persian_happy",
+   "heads/head_persian_offended",
+   "heads/head_ragdoll_calm",
+   "heads/head_ragdoll_happy",
+   "heads/head_ragdoll_offended"
+  ]
+ },
+ "U02": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "tails/tail_scottish",
+   "tails/tail_tuxedo",
+   "tails/tail_persian",
+   "tails/tail_ragdoll"
+  ]
+ },
+ "U03": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "portraits/portrait_scottish",
+   "portraits/portrait_tuxedo",
+   "portraits/portrait_persian",
+   "portraits/portrait_ragdoll"
+  ]
+ },
+ "U04": {
+  "rows": 4,
+  "cols": 3,
+  "names": [
+   "kittens/kitten_ginger_calm",
+   "kittens/kitten_ginger_happy",
+   "kittens/kitten_ginger_offended",
+   "kittens/kitten_gray_calm",
+   "kittens/kitten_gray_happy",
+   "kittens/kitten_gray_offended",
+   "kittens/kitten_black_calm",
+   "kittens/kitten_black_happy",
+   "kittens/kitten_black_offended",
+   "kittens/kitten_white_calm",
+   "kittens/kitten_white_happy",
+   "kittens/kitten_white_offended"
+  ]
+ },
+ "U05": {
+  "rows": 4,
+  "cols": 3,
+  "names": [
+   "kittens/kitten_calico_calm",
+   "kittens/kitten_calico_happy",
+   "kittens/kitten_calico_offended",
+   "kittens/kitten_siamese_calm",
+   "kittens/kitten_siamese_happy",
+   "kittens/kitten_siamese_offended",
+   "kittens/kitten_british_calm",
+   "kittens/kitten_british_happy",
+   "kittens/kitten_british_offended",
+   "kittens/kitten_tabby_calm",
+   "kittens/kitten_tabby_happy",
+   "kittens/kitten_tabby_offended"
+  ]
+ },
+ "U06": {
+  "rows": 4,
+  "cols": 3,
+  "names": [
+   "kittens/kitten_mainecoon_calm",
+   "kittens/kitten_mainecoon_happy",
+   "kittens/kitten_mainecoon_offended",
+   "kittens/kitten_sphynx_calm",
+   "kittens/kitten_sphynx_happy",
+   "kittens/kitten_sphynx_offended",
+   "kittens/kitten_bengal_calm",
+   "kittens/kitten_bengal_happy",
+   "kittens/kitten_bengal_offended",
+   "kittens/kitten_golden_calm",
+   "kittens/kitten_golden_happy",
+   "kittens/kitten_golden_offended"
+  ]
+ },
+ "U07": {
+  "rows": 4,
+  "cols": 3,
+  "names": [
+   "kittens/kitten_scottish_calm",
+   "kittens/kitten_scottish_happy",
+   "kittens/kitten_scottish_offended",
+   "kittens/kitten_tuxedo_calm",
+   "kittens/kitten_tuxedo_happy",
+   "kittens/kitten_tuxedo_offended",
+   "kittens/kitten_persian_calm",
+   "kittens/kitten_persian_happy",
+   "kittens/kitten_persian_offended",
+   "kittens/kitten_ragdoll_calm",
+   "kittens/kitten_ragdoll_happy",
+   "kittens/kitten_ragdoll_offended"
+  ]
+ }
+}

@@ -7,9 +7,11 @@ import { eventAt, updateVisitor } from '../core/live';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { playMusic, setMuted, sfx } from './sfx';
-import { grant, persist, save } from './state';
-import { DIM, badge, button, C, dialog, iconButton, panel, pill, tile, toast, txt, W, H } from './ui';
+import { grant, persist, platform, save } from './state';
+import { DIM, badge, button, C, dialog, iconButton, modal, panel, pill, tile, toast, txt, W, H } from './ui';
 import { icon } from './icons';
+import { challenge, challengeOffered, markChallengeOffered } from './share';
+import { fmtTime } from '../core/share';
 
 export class MenuScene extends Phaser.Scene {
   private introDone: () => void = () => {};
@@ -100,7 +102,20 @@ export class MenuScene extends Phaser.Scene {
       const show = () => this.showCalendar(claim.index, () => this.scene.restart());
       if (introNow) this.introDone = show;
       else show();
-    }
+    } else if (introNow) this.introDone = () => this.offerChallenge(today);
+    else this.offerChallenge(today);
+  }
+
+  /** Opened from a friend's share link: invite straight into today's puzzle. */
+  private offerChallenge(today: string) {
+    const ch = challenge();
+    if (!ch || challengeOffered() || save.daily.results[today]) return;
+    markChallengeOffered();
+    platform.track('challenge_open', { sameDay: ch.date === today });
+    const close = modal(this, t('challengeTitle'), [ch.date === today ? t('challengeText', { t: fmtTime(ch.time) }) : t('challengeTextOld')], [
+      { label: t('challengeAccept'), color: C.primary, onClick: () => { close(); this.scene.start('Level', { mode: 'daily', date: today }); } },
+      { label: t('visitorLater'), color: C.gray, onClick: () => close() },
+    ]);
   }
 
   /** 7 cells, claimed ones ticked, today's highlighted, tomorrow's reward spelled out. */

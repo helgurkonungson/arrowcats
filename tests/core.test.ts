@@ -182,3 +182,23 @@ describe('i18n', () => {
     }
   });
 });
+
+import { challengeParams, parseChallenge, tapPattern } from '../src/core/share';
+
+describe('share', () => {
+  it('turns taps into emoji rows and cuts long solves', () => {
+    expect(tapPattern(['exit', 'bonk', 'exit'])).toBe('🐈💥🐈');
+    const long = tapPattern(Array(30).fill('exit'), 8, 3);
+    expect(long.split('\n').length).toBe(3);
+    expect(long.endsWith('…')).toBe(true);
+  });
+
+  it('round-trips a challenge and rejects junk', () => {
+    const c = { date: '2026-11-15', time: 52, hearts: 3 };
+    expect(parseChallenge(challengeParams(c))).toEqual(c);
+    expect(parseChallenge({ c: '2026-11-15', t: '-1' })).toBeNull();
+    expect(parseChallenge({ c: 'x', t: '50' })).toBeNull();
+    expect(parseChallenge({ c: '2026-11-15', t: '50', h: '7' })).toBeNull();
+    expect(parseChallenge({})).toBeNull();
+  });
+});

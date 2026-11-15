@@ -16,4 +16,8 @@ export interface IPlatform {
   track(event: string, params?: Record<string, unknown>): void;
   /** leaderboards where the platform supports them (no-op otherwise) */
   submitScore(board: string, value: number): void;
+  /** link to the game carrying params (portals give their own invite links) */
+  shareUrl(params: Record<string, string>): string;
+  /** params the game was opened with (from the link or the portal SDK) */
+  launchParams(): Record<string, string>;
 }
