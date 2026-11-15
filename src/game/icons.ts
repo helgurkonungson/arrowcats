@@ -10,7 +10,7 @@ const S = 96; // texture size
 const OL = 6; // outline width
 
 export type IconName =
-  | 'fish' | 'star' | 'heart' | 'heart_empty' | 'paw' | 'back' | 'sound' | 'mute' | 'hint' | 'feed'
+  | 'fish' | 'next' | 'star' | 'heart' | 'heart_empty' | 'paw' | 'back' | 'sound' | 'mute' | 'hint' | 'feed'
   | 'daily' | 'cafe' | 'collection' | 'gift' | 'play' | 'clock' | 'check' | 'lock' | 'flame';
 
 /** Generated-art key used when the file exists (Art/PROMPTS.md 1.5 / 1.12). */
@@ -92,6 +92,7 @@ const DRAW: Record<IconName, (g: G) => void> = {
     blob(g, [[24, 38, 9], [40, 24, 9], [56, 24, 9], [72, 38, 9]], 0xb79be3);
   },
   back: (g) => line(g, [[58, 22], [34, 48], [58, 74]], 14),
+  next: (g) => line(g, [[38, 22], [62, 48], [38, 74]], 14),
   play: (g) => poly(g, [{ x: 30, y: 18 }, { x: 78, y: 48 }, { x: 30, y: 78 }], 0xfff9f0),
   sound: (g) => {
     poly(g, [{ x: 14, y: 36 }, { x: 30, y: 36 }, { x: 50, y: 18 }, { x: 50, y: 78 }, { x: 30, y: 60 }, { x: 14, y: 60 }], 0xfff9f0);
