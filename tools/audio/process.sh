@@ -9,8 +9,11 @@ mkdir -p "$DST"
 for f in "$SRC"/*.wav; do
   n="$(basename "$f" .wav)"
   if [[ "$n" == music_* ]]; then
-    # music: keep stereo, gentle loudness, no trimming (loop points are in the file)
-    ffmpeg -loglevel error -y -i "$f" -af "loudnorm=I=-20:TP=-2" -ac 2 -b:a 128k "$DST/$n.mp3"
+    # music: crossfade end into start for a seamless loop (needs numpy + soundfile), keep stereo, gentle loudness
+    tmp="$(mktemp -t loopXXXX).wav"
+    python3 "$(dirname "$0")/loop.py" "$f" "$tmp" 2
+    ffmpeg -loglevel error -y -i "$tmp" -af "loudnorm=I=-20:TP=-2" -ac 2 -b:a 96k "$DST/$n.mp3"
+    rm -f "$tmp"
   else
     ffmpeg -loglevel error -y -i "$f" -af "silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,afade=t=out:st=0:d=0.02:curve=tri,loudnorm=I=-16:TP=-1.5" -ac 1 -b:a 96k "$DST/$n.mp3"
   fi

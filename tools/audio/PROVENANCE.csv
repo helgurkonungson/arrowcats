@@ -1,0 +1,24 @@
+file,model,seed,clap_score,date,used
+ui_click_1.wav,Stable Audio 3.0 small-sfx,8919,7.85,2026-11-15,yes
+ui_click_2.wav,Stable Audio 3.0 small-sfx,40595,5.54,2026-11-15,yes
+meow_1.wav,Stable Audio 3.0 small-sfx,1000,11.54,2026-11-15,yes
+meow_2.wav,Stable Audio 3.0 small-sfx,40595,13.04,2026-11-15,yes
+meow_3.wav,Stable Audio 3.0 small-sfx,40595,11.30,2026-11-15,yes
+meow_4.wav,Stable Audio 3.0 small-sfx,40595,11.47,2026-11-15,yes
+purr.wav,Stable Audio 3.0 small-sfx,8919,12.66,2026-11-15,yes
+wake.wav,Stable Audio 3.0 small-sfx,40595,4.36,2026-11-15,yes
+bonk_1.wav,Stable Audio 3.0 small-sfx,1000,4.78,2026-11-15,yes
+bonk_2.wav,Stable Audio 3.0 small-sfx,8919,8.94,2026-11-15,yes
+slide_1.wav,Stable Audio 3.0 small-sfx,32676,12.35,2026-11-15,yes
+slide_2.wav,Stable Audio 3.0 small-sfx,40595,11.89,2026-11-15,yes
+coin.wav,Stable Audio 3.0 small-sfx,40595,4.06,2026-11-15,yes
+combo.wav,Stable Audio 3.0 small-sfx,32676,0.16,2026-11-15,yes
+star.wav,Stable Audio 3.0 small-sfx,1000,2.12,2026-11-15,"no (noisy, procedural fallback)"
+task.wav,Stable Audio 3.0 small-sfx,32676,3.19,2026-11-15,"no (noisy, procedural fallback)"
+tips.wav,Stable Audio 3.0 small-sfx,1000,-0.39,2026-11-15,"no (noisy, procedural fallback)"
+chest.wav,Stable Audio 3.0 small-sfx,32676,6.35,2026-11-15,yes
+scene.wav,Stable Audio 3.0 small-sfx,8919,11.74,2026-11-15,yes
+win.wav,Stable Audio 3.0 small-sfx,1000,10.50,2026-11-15,yes
+lose.wav,Stable Audio 3.0 small-sfx,16838,11.40,2026-11-15,yes
+music_cafe.wav,Stable Audio 3.0 small-music,16838,13.04,2026-11-15,yes
+music_level.wav,Stable Audio 3.0 small-music,16838,"(manual pick, no mid-track gap)",2026-11-15,yes
