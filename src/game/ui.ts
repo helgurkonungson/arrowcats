@@ -225,9 +225,10 @@ export interface DialogLine {
 }
 
 /** Story dialog at the bottom of the screen; tap anywhere to advance. */
-export function dialog(s: Phaser.Scene, lines: DialogLine[], hint: string, onDone: () => void) {
+/** Story dialog; `backdrop` = generated chapter illustration shown above the text box when present. */
+export function dialog(s: Phaser.Scene, lines: DialogLine[], hint: string, onDone: () => void, backdrop?: string) {
   const c = s.add.container(0, 0).setDepth(150);
-  const dim = s.add.rectangle(W / 2, H / 2, W, H, DIM, 0.4).setInteractive();
+  const dim = s.add.rectangle(W / 2, H / 2, W, H, DIM, backdrop && has(s, backdrop) ? 0.7 : 0.4).setInteractive();
   const g = s.add.graphics();
   const top = H - 430;
   panel(g, 30, top, W - 60, 350, 36);
@@ -239,7 +240,19 @@ export function dialog(s: Phaser.Scene, lines: DialogLine[], hint: string, onDon
   });
   const tip = txt(s, W / 2, H - 112, hint, 22, C.muted);
   const face = s.add.image(105, top + 30, '__DEFAULT').setVisible(false);
-  c.add([dim, g, tag, pg, face, name, body, tip]);
+  c.add([dim]);
+  if (backdrop && has(s, backdrop)) {
+    // framed illustration card above the text box
+    const bw = W - 60, bh = Math.round(bw * 0.75), by = 70;
+    const fr = s.add.graphics();
+    fr.fillStyle(C.inkN, 0.25).fillRoundedRect(30 + 6, by + 10, bw, bh, 28);
+    fr.fillStyle(C.inkN, 1).fillRoundedRect(30 - 5, by - 5, bw + 10, bh + 10, 32);
+    const im = s.add.image(W / 2, by + bh / 2, backdrop).setDisplaySize(bw, bh);
+    const mk = s.make.graphics({}, false).fillStyle(0xffffff).fillRoundedRect(30, by, bw, bh, 28);
+    im.setMask(mk.createGeometryMask());
+    c.add([fr, im]);
+  }
+  c.add([g, tag, pg, face, name, body, tip]);
   let i = 0;
   const show = () => {
     const l = lines[i];

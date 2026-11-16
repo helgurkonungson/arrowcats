@@ -29,7 +29,7 @@ interface CatView {
   busy: boolean;
   mood: Mood;
   hint: boolean;
-  zz?: Phaser.GameObjects.Text;
+  zz?: Phaser.GameObjects.Text | Phaser.GameObjects.Image;
   head?: Phaser.GameObjects.Image;
   acc?: Phaser.GameObjects.Image;
 }
@@ -107,7 +107,8 @@ export class LevelScene extends Phaser.Scene {
       };
       if (cat.sleepy) {
         const hp = this.px(cat.cells[0]);
-        v.zz = txt(this, hp.x + this.cs * 0.35, hp.y - this.cs * 0.45, 'z z', Math.max(18, this.cs * 0.3), '#7a6fb0');
+        v.zz = art(this, 'sleep_zzz', hp.x + this.cs * 0.4, hp.y - this.cs * 0.5, this.cs * 0.6, this.cs * 0.6)
+          ?? txt(this, hp.x + this.cs * 0.35, hp.y - this.cs * 0.45, 'z z', Math.max(18, this.cs * 0.3), '#7a6fb0');
         this.tweens.add({ targets: v.zz, y: '-=8', alpha: 0.4, duration: 900, yoyo: true, repeat: -1 });
       }
       this.views.set(cat.id, v);
@@ -163,6 +164,7 @@ export class LevelScene extends Phaser.Scene {
     for (const b of this.level.boxes) {
       const p = this.px(b);
       const s = this.cs * 0.84;
+      if (art(this, `box_${(b.x * 7 + b.y * 3) % 3}`, p.x, p.y, s * 1.08, s * 1.08)) continue;
       g.fillStyle(C.inkN, 0.16).fillRoundedRect(p.x - s / 2 + 4, p.y - s / 2 + 8, s, s, 8);
       g.fillStyle(0xa8784c, 1).fillRoundedRect(p.x - s / 2, p.y - s / 2, s, s, 8);
       g.fillStyle(0xc99d6b, 1).fillRoundedRect(p.x - s / 2, p.y - s / 2, s * 0.9, s * 0.9, 7);

@@ -112,9 +112,8 @@ export class CafeScene extends Phaser.Scene {
     });
 
     if (r === 0 && save.trophies.length) {
-      const sg = this.add.graphics();
-      sg.fillStyle(0xb98a5a, 1).fillRoundedRect(220, 585, 280, 18, 6).lineStyle(3, C.inkN, 1).strokeRoundedRect(220, 585, 280, 18, 6);
-      save.trophies.forEach((tr, k) => txt(this, 255 + k * 70, 562, TROPHY_ICON[tr] ?? '🏆', 40));
+      if (!art(this, 'trophy_shelf', 360, 590, 320, 90)) this.add.graphics().fillStyle(0xb98a5a, 1).fillRoundedRect(220, 585, 280, 18, 6).lineStyle(3, C.inkN, 1).strokeRoundedRect(220, 585, 280, 18, 6);
+      save.trophies.forEach((tr, k) => art(this, `trophy_${tr}`, 255 + k * 70, 552, 62, 62) ?? txt(this, 255 + k * 70, 562, TROPHY_ICON[tr] ?? '🏆', 40));
     }
     this.spawnCats();
     this.drawVisitor();
@@ -211,7 +210,7 @@ export class CafeScene extends Phaser.Scene {
         who, name: t('who_' + who), text: t(`story_${ch.key}_${res.scene}_${i}`),
       }));
       sfx.scene();
-      dialog(this, lines, t('tapToContinue'), finish);
+      dialog(this, lines, t('tapToContinue'), finish, `chapter${res.chapter + 1}_cover`);
     });
   }
 

@@ -16,7 +16,9 @@ export type IconName =
 /** Generated-art key used when the file exists (Art/PROMPTS.md 1.5 / 1.12). */
 const ART: Partial<Record<IconName, string>> = {
   fish: 'icon_fish', star: 'icon_star', heart: 'icon_heart_full', heart_empty: 'icon_heart_empty',
-  paw: 'icon_paw', hint: 'icon_hint', feed: 'icon_feed', gift: 'icon_gift',
+  paw: 'icon_paw_token', hint: 'icon_hint', feed: 'icon_feed', gift: 'icon_gift',
+  sound: 'icon_sound_on', mute: 'icon_sound_off', daily: 'icon_daily', cafe: 'icon_cafe',
+  collection: 'icon_collection', lock: 'icon_lock', flame: 'icon_streak',
 };
 
 export function iconKey(s: Phaser.Scene, n: IconName) {

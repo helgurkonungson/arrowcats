@@ -3,7 +3,7 @@
 
 Usage (from the repo folder):  python3 tools/art/process.py ../Art
 Needs: pip install pillow rembg numpy scipy   (rembg downloads its background-removal model on first run)
-Sprite sheets: Art/sheets/<ID>.png is cut by the grid in tools/art/sheets.json first; then any single file
+Sprite sheets: Art/sheets/<ID>.png or Art/<ID>.png (newest wins) is cut by the grid in tools/art/sheets.json first; then any single file
 in Art/<folder>/ with the same name overrides the sheet result (used to redo one bad item).
 Full-frame folders (backgrounds, cafe rooms, story covers, store) keep their background;
 everything else gets the background removed, is trimmed to content and resized.
@@ -16,8 +16,8 @@ SRC = Path(sys.argv[1] if len(sys.argv) > 1 else '../Art')
 DST = Path(__file__).resolve().parents[2] / 'public' / 'art'
 # folder -> (max size in px, remove background)
 RULES = {
-    'heads': (256, True), 'tails': (128, True), 'portraits': (512, True), 'obstacles': (128, True),
-    'overlays': (128, True), 'ui': (128, True), 'accessories': (192, True), 'story': (512, True),
+    'heads': (192, True), 'tails': (128, True), 'portraits': (320, True), 'obstacles': (128, True),
+    'overlays': (128, True), 'ui': (128, True), 'accessories': (192, True), 'story': (384, True),
     'cafe': (384, True), 'backgrounds': (1280, False), 'kittens': (256, True),
 }
 FULL_FRAME = ('cafe_room', 'bg_', 'chapter', 'cover')
@@ -29,6 +29,36 @@ except ImportError:
     print('rembg not installed: backgrounds will be kept (pip install rembg)')
 
 manifest = {}
+# hosted Qwen stamps a small "Qwen" logo in the bottom-right corner: blobs fully inside this zone are dropped,
+# full-frame images are cropped so the zone never shows
+WM = (0.86, 0.90)
+# full-frame images in the Art root: key -> (folder, target aspect w/h, output width, horizontal focus 0..1)
+FRAMES = {
+    'bg_board_floor': ('backgrounds', 9 / 16, 720, 0.5), 'bg_board_roof': ('backgrounds', 9 / 16, 720, 0.5),
+    'bg_board_kitchen': ('backgrounds', 9 / 16, 720, 0.35), 'bg_board_garden': ('backgrounds', 9 / 16, 720, 0.5),
+    'bg_menu': ('backgrounds', 9 / 16, 720, 0.5), 'bg_album': ('backgrounds', 9 / 16, 720, 0.5),
+    'cafe_room1': ('backgrounds', 3 / 4, 720, 0.5), 'cafe_room2': ('backgrounds', 3 / 4, 720, 0.5),
+    'chapter1_cover': ('story', 4 / 3, 720, 0.5), 'chapter2_cover': ('story', 4 / 3, 720, 0.5),
+}
+
+
+def frame(im, aspect, width, focus):
+    """Crops to the aspect (focus = horizontal position 0..1), keeping out of the watermark corner."""
+    W, H = im.size
+    h = H
+    w = min(W, int(h * aspect))
+    if w == W:  # wider target than the source: cut height instead, from the top
+        h = min(int(H * WM[1]), int(w / aspect))
+        w = int(h * aspect)
+    x = int((W - w) * focus)
+    if x + w > W * WM[0] and h > H * WM[1]:
+        x = max(0, int(W * WM[0]) - w)
+        if x + w > W * WM[0]:  # still overlaps: lose the bottom strip
+            h = int(H * WM[1])
+            w = int(h * aspect)
+            x = max(0, min(int((W - w) * focus), int(W * WM[0]) - w))
+    im = im.crop((x, 0, x + w, h))
+    return im.resize((width, int(width / aspect)), Image.LANCZOS)
 
 
 def save(im, folder, stem, size):
@@ -36,10 +66,10 @@ def save(im, folder, stem, size):
     if box:
         im = im.crop(box)
     im.thumbnail((size, size), Image.LANCZOS)
-    out = DST / folder / (stem + '.png')
+    out = DST / folder / (stem + '.webp')  # WebP with alpha: ~5x smaller than PNG, keeps first load small
     out.parent.mkdir(parents=True, exist_ok=True)
-    im.save(out, optimize=True)
-    manifest[stem] = f'{folder}/{stem}.png'
+    im.save(out, 'WEBP', quality=88, method=6)
+    manifest[stem] = f'{folder}/{stem}.webp'
     print('ok', folder, stem, im.size)
 
 
@@ -82,6 +112,8 @@ def cut_sheet(path, rows, cols):
         part = lab[sl] == i
         if part.sum() < 40:  # specks
             continue
+        if sl[1].start > W * WM[0] and sl[0].start > H * WM[1]:  # generator watermark in the corner
+            continue
         cy = (sl[0].start + sl[0].stop) / 2
         cx = (sl[1].start + sl[1].stop) / 2
         k = min(int(cy // ch), rows - 1) * cols + min(int(cx // cw), cols - 1)
@@ -96,14 +128,37 @@ def cut_sheet(path, rows, cols):
 
 SHEETS = json.loads((Path(__file__).with_name('sheets.json')).read_text())
 for sid, spec in SHEETS.items():
-    f = SRC / 'sheets' / f'{sid}.png'
-    if not f.exists():
+    # newest of Art/sheets/<ID>.png and Art/<ID>.png
+    cands = [p for p in (SRC / 'sheets' / f'{sid}.png', SRC / f'{sid}.png') if p.exists()]
+    if not cands:
         continue
+    f = max(cands, key=lambda p: p.stat().st_mtime)
     for name, im in zip(spec['names'], cut_sheet(f, spec['rows'], spec['cols'])):
         if not name:
             continue
         folder, stem = name.split('/')
         save(im, folder, stem, RULES[folder][0])
+
+for stem, (folder, aspect, width, focus) in FRAMES.items():
+    f = SRC / f'{stem}.png'
+    if not f.exists():
+        continue
+    out = DST / folder / (stem + '.jpg')
+    out.parent.mkdir(parents=True, exist_ok=True)
+    frame(Image.open(f).convert('RGB'), aspect, width, focus).save(out, quality=86, optimize=True)
+    manifest[stem] = f'{folder}/{stem}.jpg'
+    print('ok frame', stem)
+
+# single transparent items in the Art root (logo, shelf): flat background keyed like sheets
+SINGLES = {'logo': ('ui', 640), 'trophy_shelf': ('cafe', 480)}
+for stem, (folder, size) in SINGLES.items():
+    f = SRC / f'{stem}.png'
+    if f.exists():
+        save(cut_sheet(f, 1, 1)[0], folder, stem, size)
+# the cleaned-up vector logo export (transparent) beats the generated one
+vec = SRC / 'Logo' / 'kittangle-logo.png'
+if vec.exists():
+    save(Image.open(vec).convert('RGBA'), 'ui', 'logo', 640)
 
 for folder, (size, cut) in RULES.items():
     for f in sorted((SRC / folder).glob('*.png')):

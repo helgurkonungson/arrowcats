@@ -8,6 +8,7 @@ import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { playMusic, setMuted, sfx } from './sfx';
 import { grant, persist, platform, save } from './state';
+import { art } from './art';
 import { DIM, badge, button, C, dialog, iconButton, modal, panel, pill, tile, toast, txt, W, H } from './ui';
 import { icon } from './icons';
 import { challenge, challengeOffered, markChallengeOffered } from './share';
@@ -23,6 +24,7 @@ export class MenuScene extends Phaser.Scene {
   create() {
     platform.ready();
     this.cameras.main.setBackgroundColor(C.bg);
+    if (art(this, 'bg_menu', W / 2, H / 2, W, H, true)) this.add.rectangle(W / 2, H / 2, W, H, C.bg, 0.35);
     playMusic('music_cafe');
     const fish = pill(this, W - 28, 64, 'fish', () => save.fish);
     pill(this, W - 228, 64, 'star', () => save.stars, 130);
@@ -33,10 +35,12 @@ export class MenuScene extends Phaser.Scene {
       this.scene.restart();
     });
 
-    // logo (replaced by generated logo art later)
-    const logo = txt(this, W / 2, 215, t('title'), 96, C.ink).setStroke('#fff9f0', 14);
-    logo.setShadow(0, 8, '#e2c7a4', 0, true, false);
-    if (logo.width > W - 60) logo.setScale((W - 60) / logo.width);
+    // logo: generated art, text fallback
+    if (!art(this, 'logo', W / 2, 215, W - 80, 230)) {
+      const logo = txt(this, W / 2, 215, t('title'), 96, C.ink).setStroke('#fff9f0', 14);
+      logo.setShadow(0, 8, '#e2c7a4', 0, true, false);
+      if (logo.width > W - 60) logo.setScale((W - 60) / logo.width);
+    }
 
     // mascot on a soft floor shadow
     this.add.ellipse(W / 2, 452, 330, 46, C.inkN, 0.1);
@@ -90,7 +94,7 @@ export class MenuScene extends Phaser.Scene {
     if (introNow) {
       save.introSeen = true;
       persist();
-      dialog(this, INTRO.map((who, i) => ({ who, name: t('who_' + who), text: t('intro_' + i) })), t('tapToContinue'), () => this.introDone());
+      dialog(this, INTRO.map((who, i) => ({ who, name: t('who_' + who), text: t('intro_' + i) })), t('tapToContinue'), () => this.introDone(), 'chapter1_cover');
     }
     // login streak + 7-day calendar (after the intro on first launch)
     if (save.login.last !== today) {

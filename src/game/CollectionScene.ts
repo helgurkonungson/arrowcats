@@ -7,7 +7,7 @@ import { drawCat } from './drawCat';
 import { art } from './art';
 import { sfx } from './sfx';
 import { grant, persist, platform, save } from './state';
-import { button, C, modal, toast, txt, W, backButton, panel } from './ui';
+import { button, C, modal, toast, txt, W, H, backButton, panel } from './ui';
 
 /** Album: 3 sets of 4 breeds with set rewards; tap an owned cat to choose its accessory. */
 export class CollectionScene extends Phaser.Scene {
@@ -16,6 +16,7 @@ export class CollectionScene extends Phaser.Scene {
   }
 
   create() {
+    art(this, 'bg_album', W / 2, H / 2, W, H, true);
     backButton(this, () => this.scene.start('Menu'));
     txt(this, W / 2, 70, t('collection'), 40);
     txt(this, W / 2, 135, t('collectionProgress', { a: save.breeds.length, b: BREEDS.length }), 28);
