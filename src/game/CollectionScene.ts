@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { tipOnce } from './tips';
 import { BREEDS } from '../core/content';
 import { setComplete, SETS } from '../core/live';
 import { rewardText } from '../core/retention';
@@ -23,6 +24,7 @@ export class CollectionScene extends Phaser.Scene {
   }
 
   create() {
+    this.time.delayedCall(350, () => tipOnce(this, 'collection'));
     if (this.msg) this.time.delayedCall(50, () => toast(this, this.msg, 1150));
     art(this, 'bg_album', W / 2, H / 2, W, H, true);
     backButton(this, () => this.scene.start('Menu'));

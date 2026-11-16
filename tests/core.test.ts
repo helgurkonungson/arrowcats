@@ -60,11 +60,11 @@ describe('levels', () => {
 describe('save', () => {
   it('migrates garbage and partial saves', () => {
     expect(migrate(null)).toEqual(defaultSave());
-    const s = migrate({ level: 7, cafe: [[2]] });
+    const s = migrate({ v: 5, level: 7, cafe: [[2]] });
     expect(s.level).toBe(7);
     expect(s.cafe[0][0]).toBe(-1); // a look is only kept when its renovation task is done
     expect(s.cafe[0][1]).toBe(-1);
-    const t = migrate({ v: 4, cafe: [[2, 1]], tasksDone: ['hall_d0', 'hall_d1', 'hall2_d0'] });
+    const t = migrate({ v: 5, cafe: [[2, 1]], tasksDone: ['hall_d0', 'hall_d1', 'hall2_d0'] });
     expect(t.cafeTier[0].slice(0, 2)).toEqual([1, 0]);
     expect(t.cafe[0].slice(0, 2)).toEqual([1, 0]);
   });
@@ -93,12 +93,6 @@ describe('meta', () => {
     expect(st.stars).toBe(500 - CHAPTERS.reduce((n, c) => n + chapterCost(c), 0));
     expect(nextTask(st.tasksDone)).toBeNull();
     expect(progress(st.tasksDone).chapter).toBe(CHAPTERS.length);
-  });
-
-  it('migrates v1 cafe purchases into done tasks', () => {
-    const s = migrate({ v: 1, cafe: [[0, 1, -1, -1, -1]] });
-    expect(s.tasksDone).toEqual(['hall_d0', 'hall_d1']);
-    expect(s.v).toBe(4);
   });
 });
 
@@ -282,5 +276,39 @@ describe('fish sink and board ramp (2026-11-16)', () => {
     expect(p10.w * p10.h).toBeGreaterThanOrEqual(100);
     expect(p30.w).toBe(11); expect(p30.h).toBe(14);
     for (let n = 1; n <= 300; n++) { const p = levelParams(n); expect(p.w).toBeLessThanOrEqual(11); expect(p.h).toBeLessThanOrEqual(14); }
+  });
+});
+
+describe('few free cats + mini-tutorial + v5 reset (2026-11-16)', () => {
+  it('levels respect the free-cat limit (3 early → 1 late, at most +1 slack)', async () => {
+    const { getLevel, levelParams } = await import('../src/core/levels');
+    const { metrics } = await import('../src/core/solver');
+    let strict = 0;
+    const ns = [6, 9, 12, 17, 20, 25, 30, 41, 55];
+    for (const n of ns) {
+      const p = levelParams(n);
+      const m = metrics(getLevel(n));
+      expect(m.solvable).toBe(true);
+      expect(m.peak).toBeLessThanOrEqual(p.maxFree! + 1);
+      if (m.peak <= p.maxFree!) strict++;
+    }
+    expect(strict).toBeGreaterThanOrEqual(ns.length - 2);
+    expect(levelParams(6).maxFree).toBe(3);
+    expect(levelParams(40).maxFree).toBe(1);
+  }, 60000);
+  it('tips appear when the mechanic appears, max two per level, never twice', async () => {
+    const { levelTips } = await import('../src/core/tutorial');
+    const ctx = { mode: 'level' as const, n: 4, hard: false, sleepy: false, boxes: false, winStreak: 0 };
+    expect(levelTips(ctx, [])).toEqual(['fewFree']);
+    expect(levelTips({ ...ctx, n: 16, sleepy: true }, ['fewFree', 'hint', 'feed'])).toEqual(['sleepy']);
+    expect(levelTips({ ...ctx, n: 31, boxes: true, winStreak: 3 }, ['fewFree', 'hint', 'feed'])).toEqual(['streak', 'boxes']);
+    expect(levelTips({ ...ctx, mode: 'daily' }, ['daily'])).toEqual([]);
+  });
+  it('v4 saves start over (purchases kept)', async () => {
+    const { migrate } = await import('../src/core/save');
+    const s = migrate({ v: 4, level: 35, fish: 3494, noAds: true, purchases: ['no_ads'] });
+    expect(s.level ?? 1).toBeLessThanOrEqual(1);
+    expect(s.fish).toBeLessThan(3494);
+    expect(s.noAds).toBe(true);
   });
 });

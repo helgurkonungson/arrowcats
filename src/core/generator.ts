@@ -2,6 +2,10 @@ import { mulberry32, randInt, shuffle } from './rng';
 import { metrics } from './solver';
 import { Cat, Cell, Dir, DX, DY, Level } from './types';
 
+/** share of the board the chain itself fills when maxFree is set (sweep 2026-11-16: 0.6 → 88% levels
+ *  meet the limit, ~86% fill after tail growth; 1.0 → none meet it) */
+const FILL_K = 0.6;
+
 export interface GenParams {
   w: number;
   h: number;
@@ -18,6 +22,8 @@ export interface GenParams {
   depth: number;
   /** 0..1: how hard placement tries to block cats that are still free (tangled, few exits at a time) */
   tangle?: number;
+  /** max cats free at one moment (2026-11-16 playtest: 3 early → 1 late); undefined = no limit */
+  maxFree?: number;
 }
 
 /**
@@ -42,7 +48,8 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
   }
 
   const cats: Cat[] = [];
-  const target = Math.floor(p.fill * w * h);
+  // with a free-cat limit the chain is built sparse (lanes stay long), fillGaps grows tails into the rest
+  const target = Math.floor(p.fill * w * h * (p.maxFree ? FILL_K : 1));
   let filled = boxes.length;
   let fails = 0;
 
@@ -108,28 +115,55 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
     return hit.size;
   };
 
-  const tries = Math.max(1, Math.round(1 + (p.tangle ?? 0) * 11));
+  const K = p.maxFree ?? 99;
+  /** cats whose way out is clear right now (in reverse-order play this is what the player sees) */
+  let freeNow = 0;
+  /** empty cells in the exit lanes of free cats: a new cat placed there blocks one of them */
+  const freeLaneCells = () => {
+    const out: number[] = [];
+    for (const [k, owners] of laneOf) {
+      if (occ[k] !== -1 || !owners.some((o) => !blocked[o])) continue;
+      out.push(k, k); // the lane cell itself (twice: preferred) and its neighbours (body crosses the lane)
+      const x = k % w;
+      const y = Math.floor(k / w);
+      for (let d = 0; d < 4; d++) if (inb(x + DX[d], y + DY[d])) out.push(idx(x + DX[d], y + DY[d]));
+    }
+    return out;
+  };
+  const tries = Math.max(1, Math.round(1 + (p.tangle ?? 0) * 11)) + (K < 99 ? 40 : 0);
   while (filled < target && fails < 1500) {
     let made: { cells: Cell[]; lane: number[] } | null = null;
-    let bestScore = -1;
+    let bestScore = -Infinity;
+    const lanes = K < 99 && freeNow >= K ? freeLaneCells() : [];
     for (let t = 0; t < tries; t++) {
-      const x = randInt(r, 0, w - 1);
-      const y = randInt(r, 0, h - 1);
+      // with a free-cat limit, half the tries start inside a free cat's lane (so the new cat blocks it)
+      const k = lanes.length && t % 3 !== 0 ? lanes[Math.floor(r() * lanes.length)] : randInt(r, 0, w * h - 1);
+      const x = k % w;
+      const y = Math.floor(k / w);
       if (occ[idx(x, y)] !== -1) continue;
       const c = tryCat(x, y);
       if (!c) continue;
-      // prefer blocking free cats, then longer bodies; random tie-break
-      const score = blocksFree(c.cells) * 10 + c.cells.length + r();
+      // keep the free-cat limit, then prefer blocking free cats, then longer bodies; random tie-break
+      const bf = blocksFree(c.cells);
+      const over = Math.max(0, freeNow - bf + 1 - Math.max(K, freeNow)); // never grow past the limit
+      // a cat with no lane (head on the edge, facing out) can never be blocked later: with a limit it
+      // would stay free for the whole level, so it counts as going over
+      const dead = K < 99 && c.lane.length < 2 ? 2 : 0;
+      // with a limit a longer lane is easier to block later
+      const laneBonus = K < 99 ? Math.min(c.lane.length, 8) * 4 : 0;
+      const score = -(over + dead) * 1000 + bf * 10 + laneBonus + c.cells.length + r();
       if (score > bestScore) {
         bestScore = score;
         made = c;
       }
     }
-    if (!made) {
-      fails++;
+    // over the free-cat limit: retry; every 50th miss accept it rather than leave the board half empty
+    if (!made || (bestScore < -500 && ++fails % 150 !== 0)) {
+      if (!made) fails++;
       continue;
     }
     const cid = cats.length;
+    freeNow += 1 - blocksFree(made.cells);
     for (const c of made.cells) {
       const k = idx(c.x, c.y);
       occ[k] = cid;
@@ -156,7 +190,7 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
    * drop short new cats whose way out is already clear (they leave first); leftovers become boxes.
    */
   function fillGaps() {
-    const maxLen = p.maxLen + 4;
+    const maxLen = p.maxFree ? Math.min(p.maxLen + 8, 14) : p.maxLen + 4;
     const canTake = (k: number, owner: number) => (laneOf.get(k) ?? []).every((b) => b < owner);
     for (let round = 0; round < 40; round++) {
       let changed = false;
@@ -170,6 +204,10 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
           if (!opts.length) break;
           const c = opts[Math.floor(r() * opts.length)];
           occ[idx(c.x, c.y)] = cat.id;
+          for (const o of laneOf.get(idx(c.x, c.y)) ?? []) {
+            if (!blocked[o]) freeNow--;
+            blocked[o] = (blocked[o] ?? 0) + 1;
+          }
           cat.cells.push(c);
           changed = true;
         }
@@ -181,8 +219,15 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
         const y = Math.floor(k / w);
         const made = tryCat(x, y);
         if (!made) continue;
+        const bf = blocksFree(made.cells);
+        if (freeNow - bf + 1 > Math.max(K, freeNow)) continue; // would show too many moves at once: leave the hole
         const cid = cats.length;
-        for (const c of made.cells) occ[idx(c.x, c.y)] = cid;
+        freeNow += 1 - bf;
+        for (const c of made.cells) {
+          occ[idx(c.x, c.y)] = cid;
+          for (const o of laneOf.get(idx(c.x, c.y)) ?? []) blocked[o] = (blocked[o] ?? 0) + 1;
+        }
+        blocked[cid] = 0;
         for (const l of made.lane) laneOf.set(l, [...(laneOf.get(l) ?? []), cid]);
         cats.push({ id: cid, cells: made.cells, breed: p.breeds[Math.floor(r() * p.breeds.length)], sleepy: false });
         changed = true;
@@ -202,15 +247,18 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
 export function generateLevel(seed: number, p: GenParams, id: string): Level {
   let best: Level | null = null;
   let bestScore = -Infinity;
-  for (let i = 0; i < 10; i++) {
+  const n = 10;
+  for (let i = 0; i < n; i++) {
     const lv = generateOnce(seed + i * 7919, p, id);
     const m = metrics(lv);
     if (!m.solvable || m.cats < 2) continue;
-    const score = -Math.abs(m.depth - p.depth) * 10 + m.fill * 5 - m.narrow * 0.5 - (m.first / m.cats) * 20;
+    const over = p.maxFree ? Math.max(0, m.peak - p.maxFree) : 0;
+    const score = -over * 100 - Math.abs(m.depth - p.depth) * 10 + m.fill * 5 - m.narrow * 0.5 - (m.first / m.cats) * 20;
     if (score > bestScore) {
       bestScore = score;
       best = lv;
     }
+    if (p.maxFree && !over && Math.abs(m.depth - p.depth) <= 3 && m.fill > 0.85) break; // good enough
   }
   return best ?? generateOnce(seed, p, id);
 }

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { tipOnce } from './tips';
 import { CAFE_ROOMS, CAFE_SLOTS, CAFE_VARIANTS } from '../core/content';
 import { chapterChest, CHAPTERS, doTask, nextTask, progress, roomChapter } from '../core/meta';
 import { comfort, tipsAvailable, tipsRate } from '../core/retention';
@@ -38,6 +39,7 @@ export class CafeScene extends Phaser.Scene {
   }
 
   create() {
+    this.time.delayedCall(350, () => tipOnce(this, 'cafe'));
     playMusic('music_cafe');
     const r = this.room;
     const g = this.add.graphics();

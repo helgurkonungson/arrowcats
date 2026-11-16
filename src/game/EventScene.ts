@@ -1,5 +1,6 @@
 import { sittingCat } from './art';
 import Phaser from 'phaser';
+import { tipOnce } from './tips';
 import { ACCESSORIES, eventAt, SEASON_WEEKS, TRACK, TROPHY_ICON, TROPHIES } from '../core/live';
 import { utcDate } from '../core/levels';
 import { rewardText } from '../core/retention';
@@ -15,6 +16,7 @@ export class EventScene extends Phaser.Scene {
   }
 
   create() {
+    this.time.delayedCall(350, () => tipOnce(this, 'event'));
     const e = eventAt(utcDate());
     const cur = save.event.id === e.id;
     const paws = cur ? save.event.paws : 0;

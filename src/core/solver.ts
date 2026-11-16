@@ -23,7 +23,39 @@ export function metrics(level: Level) {
     narrow: s.waves.length ? Math.min(...s.waves.map((w) => w.length)) : 0,
     /** cats free at the start: the fewer, the harder to spot a move */
     first: s.waves[0]?.length ?? 0,
+    /** most cats free at one moment (greedy estimate of the worst play order): 1 = strict chain */
+    peak: s.solvable ? peakFree(level) : 99,
     cats: level.cats.length,
     fill: (cells + level.boxes.length) / (level.w * level.h),
   };
+}
+
+/**
+ * Most cats that are free at the same time. Freeness is monotone (removal never blocks), so the
+ * player can push this up by first removing cats that unlock many others; we follow exactly that
+ * greedy policy (remove the free cat whose removal leaves the most free cats) and keep the max.
+ */
+export function peakFree(level: Level) {
+  const b = new Board(level);
+  let peak = 0;
+  while (b.count) {
+    const free = b.freeCats();
+    if (!free.length) break;
+    peak = Math.max(peak, free.length);
+    let best = free[0];
+    let bestN = -1;
+    for (const id of free) {
+      const c = b.cats.get(id)!;
+      b.remove(id);
+      const n = b.freeCats().length;
+      b.cats.set(id, c);
+      for (const p of c.cells) b.grid[p.y * b.w + p.x] = id;
+      if (n > bestN) {
+        bestN = n;
+        best = id;
+      }
+    }
+    b.remove(best);
+  }
+  return peak;
 }

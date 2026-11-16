@@ -64,7 +64,10 @@ export function levelParams(n: number): GenParams {
     boxes: n >= 31 && n % 3 === 1 ? 1 + (n % 2) : 0,
     sleepy: n === 16 ? 0.3 : n > 16 ? 0.08 : 0,
     breeds: Array.from({ length: clamp(3 + Math.floor(n / 6), 3, COMMON) }, (_, i) => i),
-    depth: clamp(3 + Math.floor(tier / 5) + saw + (hard ? 3 : 0), 2, 18),
+    depth: clamp(3 + Math.floor(tier / 3) + saw + (hard ? 4 : 0), 2, 22),
+    // 2026-11-16 (3rd playtest): only a few cats may be free at once – 3 while learning, then 2,
+    // then 1 (a chain: each exit opens the next). Breathers allow one more, hard levels are strict.
+    maxFree: hard ? 1 : clamp((tier < 6 ? 3 : tier < 16 ? 2 : 1) + (saw < 0 ? 1 : 0), 1, 3),
   };
 }
 

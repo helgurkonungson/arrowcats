@@ -7,7 +7,7 @@ export interface DailyResult {
 }
 
 export interface SaveData {
-  v: 4;
+  v: 5;
   visit: { visitor: number; until: number; lastSeen: number };
   setsClaimed: string[];
   accessories: string[];
@@ -33,6 +33,8 @@ export interface SaveData {
   /** residents whose golden frame is unlocked */
   frames: string[];
   introSeen: boolean;
+  /** mechanic explanations already shown (core/tutorial.ts) */
+  tipsSeen: string[];
   breeds: number[];
   /** cafe[room][slot] = chosen variant, -1 not bought */
   cafe: number[][];
@@ -55,11 +57,11 @@ export interface SaveData {
   purchases: string[];
 }
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 export function defaultSave(): SaveData {
   return {
-    v: 4,
+    v: 5,
     visit: { visitor: -1, until: 0, lastSeen: 0 },
     setsClaimed: [],
     accessories: [],
@@ -78,6 +80,7 @@ export function defaultSave(): SaveData {
     flawless: {},
     frames: [],
     introSeen: false,
+    tipsSeen: [],
     breeds: [],
     cafe: Array.from({ length: CAFE_ROOMS }, () => CAFE_SLOTS.map(() => -1)),
     cafeTier: Array.from({ length: CAFE_ROOMS }, () => CAFE_SLOTS.map(() => -1)),
@@ -98,9 +101,11 @@ export function migrate(raw: unknown): SaveData {
   const base = defaultSave();
   if (!raw || typeof raw !== 'object') return base;
   const s = raw as Omit<Partial<SaveData>, 'v'> & { v?: number };
+  // v5 (2026-11-16, before release): levels, economy and tutorial changed too much, testers start over.
+  // Purchases are kept. After release never wipe: migrate instead.
+  if ((s.v ?? 0) < 5) return { ...base, noAds: !!s.noAds, purchases: [...(s.purchases ?? [])] };
   const cafe = base.cafe.map((room, r) => room.map((v, i) => s.cafe?.[r]?.[i] ?? v));
-  // v1 -> v2: décor bought with fish counts as done chapter tasks
-  const tasksDone = s.tasksDone ?? (s.v === 1 ? v1Tasks(cafe) : []);
+  const tasksDone = s.tasksDone ?? [];
   const cafeTier = tiersFromTasks(tasksDone, CAFE_ROOMS, CAFE_SLOTS.length);
   cafe.forEach((room, r) => room.forEach((v, i) => {
     if (v > cafeTier[r][i]) room[i] = cafeTier[r][i];
@@ -108,7 +113,7 @@ export function migrate(raw: unknown): SaveData {
   return {
     ...base,
     ...s,
-    v: 4,
+    v: 5,
     tasksDone,
     visit: { ...base.visit, ...(s.visit ?? {}) },
     event: { ...base.event, ...(s.event ?? {}) },
@@ -122,14 +127,8 @@ export function migrate(raw: unknown): SaveData {
     cafeTier,
     friend: { ...(s.friend ?? {}) },
     friendTreat: { ...(s.friendTreat ?? {}) },
+    tipsSeen: [...(s.tipsSeen ?? [])],
   };
-}
-
-function v1Tasks(cafe: number[][]): string[] {
-  const keys = ['hall', 'attic'];
-  const out: string[] = [];
-  cafe.forEach((room, r) => room.forEach((v, i) => v >= 0 && keys[r] && out.push(`${keys[r]}_d${i}`)));
-  return out;
 }
 
 export const prevDate = (date: string) =>

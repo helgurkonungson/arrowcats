@@ -10,6 +10,8 @@ import { headDir } from '../core/board';
 import { CHAPTERS, nextTask, progress, starsToScene } from '../core/meta';
 import { newTier, streakBonus } from '../core/streak';
 import { addFriendship, friendReward } from '../core/friend';
+import { levelTips } from '../core/tutorial';
+import { showTips } from './tips';
 import { t } from '../i18n';
 import { drawCat, Mood } from './drawCat';
 import { art, has, headKey } from './art';
@@ -137,6 +139,12 @@ export class LevelScene extends Phaser.Scene {
     }
     if (new URLSearchParams(location.search).has('debug')) this.exposeDebug();
     this.startTime = this.time.now;
+    // each mechanic is explained once, when it first shows up (core/tutorial.ts)
+    const tips = levelTips({
+      mode: d.mode, n: d.mode === 'level' ? d.n : 0, hard: !!this.level.hard,
+      sleepy: this.level.cats.some((c) => c.sleepy), boxes: this.level.boxes.length > 0, winStreak: save.winStreak,
+    }, save.tipsSeen);
+    if (tips.length) showTips(this, tips, () => (this.startTime = this.time.now)); // daily timer starts after reading
     playMusic('music_level');
     platform.gameplayStart();
     platform.track('level_start', { id: this.level.id });
@@ -423,6 +431,10 @@ export class LevelScene extends Phaser.Scene {
     if (this.combo >= 2) {
       gain += Math.min(this.combo - 1, COMBO_BONUS_MAX);
       toast(this, t('combo', { n: this.combo, f: Math.min(this.combo - 1, COMBO_BONUS_MAX) }), H - 240);
+      if (!save.tipsSeen.includes('combo')) {
+        save.tipsSeen.push('combo');
+        this.time.delayedCall(900, () => toast(this, t('tip_combo'), H - 300));
+      }
       sfx.combo(this.combo);
     }
     this.earned += gain;
