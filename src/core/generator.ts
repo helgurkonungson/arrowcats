@@ -145,8 +145,57 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
     });
     filled += made.cells.length;
   }
+  fillGaps();
   if (p.rare !== undefined && cats.length) cats[Math.floor(r() * cats.length)].breed = p.rare;
   return { id, w, h, cats, boxes };
+
+  /**
+   * Leaves no empty cells (playtest: holes look unfinished). Keeps solvability: removal order is the
+   * reverse of placement, so a cell may join cat A only if every cat whose exit lane crosses it was
+   * placed before A (A is gone by the time they leave). Steps: grow tails into free neighbours, then
+   * drop short new cats whose way out is already clear (they leave first); leftovers become boxes.
+   */
+  function fillGaps() {
+    const maxLen = p.maxLen + 4;
+    const canTake = (k: number, owner: number) => (laneOf.get(k) ?? []).every((b) => b < owner);
+    for (let round = 0; round < 40; round++) {
+      let changed = false;
+      // 1) tail growth
+      for (const cat of cats) {
+        while (cat.cells.length < maxLen) {
+          const t = cat.cells[cat.cells.length - 1];
+          const opts = ([0, 1, 2, 3] as Dir[])
+            .map((d) => ({ x: t.x + DX[d], y: t.y + DY[d] }))
+            .filter((c) => inb(c.x, c.y) && occ[idx(c.x, c.y)] === -1 && canTake(idx(c.x, c.y), cat.id));
+          if (!opts.length) break;
+          const c = opts[Math.floor(r() * opts.length)];
+          occ[idx(c.x, c.y)] = cat.id;
+          cat.cells.push(c);
+          changed = true;
+        }
+      }
+      // 2) new short cats in what is left (placed last = leave first, so their lane must be empty)
+      for (let k = 0; k < w * h; k++) {
+        if (occ[k] !== -1) continue;
+        const x = k % w;
+        const y = Math.floor(k / w);
+        const made = tryCat(x, y);
+        if (!made) continue;
+        const cid = cats.length;
+        for (const c of made.cells) occ[idx(c.x, c.y)] = cid;
+        for (const l of made.lane) laneOf.set(l, [...(laneOf.get(l) ?? []), cid]);
+        cats.push({ id: cid, cells: made.cells, breed: p.breeds[Math.floor(r() * p.breeds.length)], sleepy: false });
+        changed = true;
+      }
+      if (!changed) break;
+    }
+    // 3) empty cells outside every exit lane become boxes (lane cells must stay open)
+    if (!p.boxes) return; // boxes are a mechanic from level 31; before that small holes may stay
+    for (let k = 0; k < w * h; k++) if (occ[k] === -1 && !(laneOf.get(k) ?? []).length) {
+      occ[k] = -2;
+      boxes.push({ x: k % w, y: Math.floor(k / w) });
+    }
+  }
 }
 
 /** Builds several candidates and keeps the one closest to the target depth. */

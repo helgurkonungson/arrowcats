@@ -19,13 +19,16 @@ const FLOOR = [0xe3c49f, 0xd8b98e]; // hall: honey wood, attic: pine
 
 export class CafeScene extends Phaser.Scene {
   private room = 0;
+  /** slot just renovated (sparkle + pop on the next draw) */
+  private upgraded = -1;
 
   constructor() {
     super('Cafe');
   }
 
-  init(d: { room?: number }) {
+  init(d: { room?: number; upgraded?: number }) {
     this.room = d.room ?? CHAPTERS[Math.min(progress(save.tasksDone).chapter, CHAPTERS.length - 1)].room;
+    this.upgraded = d.upgraded ?? -1;
   }
 
   /** A room opens when the story reaches its first chapter. */
@@ -70,6 +73,7 @@ export class CafeScene extends Phaser.Scene {
       const v = save.cafe[r][i];
       if (v >= 0) {
         const im = art(this, `decor_r${r + 1}_${key}_${v}`, rect.x, rect.y, rect.w * 1.15, rect.h * 1.15);
+        if (im && i === this.upgraded) this.celebrate(im);
         if (im && FLOOR_SLOTS[r].includes(key)) {
           im.setOrigin(0.5, 1).setY(rect.y + rect.h / 2);
           this.add.ellipse(rect.x, rect.y + rect.h / 2 - 4, im.displayWidth * 0.8, 18, C.inkN, 0.12);
@@ -119,6 +123,7 @@ export class CafeScene extends Phaser.Scene {
     this.spawnCats();
     this.drawVisitor();
     this.drawTaskPanel();
+    this.chapterIntro();
     const tips = tipsAvailable(save.cafe, save.tips.since, Date.now(), save.cafeTier);
     button(this, 130, 1065, 210, 70, t('tipsLabel', { n: tips }), () => {
       const n = tipsAvailable(save.cafe, save.tips.since, Date.now(), save.cafeTier);
@@ -158,7 +163,10 @@ export class CafeScene extends Phaser.Scene {
       return;
     }
     if (CHAPTERS[p.chapter].room !== this.room) {
-      txt(this, W / 2 - 60, 1195, t('chapterDone'), 30);
+      // the story moved on to the other room: say where and why
+      const next = CHAPTERS[p.chapter];
+      txt(this, W / 2 - 70, 1195, t(next.stage ? 'renovateNext' : 'nextRoom', { name: t('chapter_' + next.key) }), 26)
+        .setWordWrapWidth(440, true);
       button(this, W - 120, 1195, 140, 80, '▶', () => this.scene.restart({ room: CHAPTERS[p.chapter].room }), {
         color: C.green, size: 34,
       });
@@ -176,6 +184,36 @@ export class CafeScene extends Phaser.Scene {
     });
   }
 
+  /** Renovated piece: pop + sparkles so the change is noticed. */
+  private celebrate(im: Phaser.GameObjects.Image) {
+    const sc = im.scale;
+    im.setScale(sc * 0.6);
+    this.tweens.add({ targets: im, scale: sc, duration: 450, ease: 'Back.Out' });
+    const cy = im.y - im.displayHeight * (im.originY - 0.5);
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      const s = txt(this, im.x, cy, '✦', 30, '#ffd23f').setStroke(C.ink, 4);
+      this.tweens.add({
+        targets: s, x: im.x + Math.cos(a) * 150, y: cy + Math.sin(a) * 120, alpha: 0, scale: 1.6,
+        duration: 800, ease: 'Cubic.Out', onComplete: () => s.destroy(),
+      });
+    }
+    sfx.star();
+    this.upgraded = -1;
+  }
+
+  /** First visit of a renovation chapter: one short explanation. */
+  private chapterIntro() {
+    const p = progress(save.tasksDone);
+    const ch = CHAPTERS[p.chapter];
+    if (!ch || !ch.stage || p.task !== 0 || ch.room !== this.room || save.chapterIntro >= p.chapter) return;
+    save.chapterIntro = p.chapter;
+    persist();
+    const close = modal(this, t('chapter_' + ch.key), [t(ch.stage === 1 ? 'renovIntro1' : 'renovIntro2')], [
+      { label: t('next'), color: C.green, onClick: () => close() },
+    ]);
+  }
+
   private perform() {
     const task = nextTask(save.tasksDone);
     if (!task) return;
@@ -190,10 +228,11 @@ export class CafeScene extends Phaser.Scene {
     persist();
     sfx.task();
     platform.track('cafe_task', { id: task.id });
+    const upgraded = task.kind === 'decor' ? task.slot! : -1;
     if (task.kind === 'story') toast(this, `${t('done_story')} ${t('task_' + task.id)}`, 1060);
 
     const finish = () => {
-      if (!res.chapterDone) return this.scene.restart({ room: ch.room });
+      if (!res.chapterDone) return this.scene.restart({ room: ch.room, upgraded });
       const lines = [t('chapterDone')];
       const chest = chapterChest(res.chapter);
       save.fish += chest.fish;

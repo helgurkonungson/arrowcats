@@ -53,6 +53,18 @@ export const CHAPTERS: Chapter[] = [
   chapter('attic3', 1, 2, 'luna', [['luna', 'murr'], ['luna', 'murr'], ['luna', 'murr']]),
 ];
 
+/**
+ * Unlocked look per piece, derived from finished décor tasks (the source of truth for save.cafeTier):
+ * tier[room][slot] = highest renovation stage done for it, -1 if never built.
+ */
+export function tiersFromTasks(done: readonly string[], rooms: number, slots: number): number[][] {
+  const tier = Array.from({ length: rooms }, () => Array<number>(slots).fill(-1));
+  for (const ch of CHAPTERS)
+    for (const k of ch.tasks)
+      if (k.kind === 'decor' && done.includes(k.id) && ch.room < rooms) tier[ch.room][k.slot!] = Math.max(tier[ch.room][k.slot!], ch.stage);
+  return tier;
+}
+
 /** Chest for a finished chapter: grows with the chapter number. */
 export const chapterChest = (c: number) => ({ fish: 100 + 50 * c, paws: 2 + c });
 

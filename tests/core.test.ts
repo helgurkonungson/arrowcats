@@ -62,8 +62,11 @@ describe('save', () => {
     expect(migrate(null)).toEqual(defaultSave());
     const s = migrate({ level: 7, cafe: [[2]] });
     expect(s.level).toBe(7);
-    expect(s.cafe[0][0]).toBe(2);
+    expect(s.cafe[0][0]).toBe(-1); // a look is only kept when its renovation task is done
     expect(s.cafe[0][1]).toBe(-1);
+    const t = migrate({ v: 4, cafe: [[2, 1]], tasksDone: ['hall_d0', 'hall_d1', 'hall2_d0'] });
+    expect(t.cafeTier[0].slice(0, 2)).toEqual([1, 0]);
+    expect(t.cafe[0].slice(0, 2)).toEqual([1, 0]);
   });
 });
 

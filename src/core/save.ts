@@ -1,4 +1,5 @@
 import { CAFE_ROOMS, CAFE_SLOTS } from './content';
+import { tiersFromTasks } from './meta';
 
 export interface DailyResult {
   hearts: number;
@@ -37,6 +38,8 @@ export interface SaveData {
   cafe: number[][];
   /** cafeTier[room][slot] = highest variant unlocked by renovation chapters, -1 none */
   cafeTier: number[][];
+  /** last renovation chapter whose intro was shown */
+  chapterIntro: number;
   /** consecutive won levels (short loop) */
   winStreak: number;
   /** breed -> rescued cats of that breed (friendship, long loop) */
@@ -76,6 +79,7 @@ export function defaultSave(): SaveData {
     breeds: [],
     cafe: Array.from({ length: CAFE_ROOMS }, () => CAFE_SLOTS.map(() => -1)),
     cafeTier: Array.from({ length: CAFE_ROOMS }, () => CAFE_SLOTS.map(() => -1)),
+    chapterIntro: -1,
     winStreak: 0,
     friend: {},
     daily: { last: '', streak: 0, results: {} },
@@ -94,6 +98,10 @@ export function migrate(raw: unknown): SaveData {
   const cafe = base.cafe.map((room, r) => room.map((v, i) => s.cafe?.[r]?.[i] ?? v));
   // v1 -> v2: décor bought with fish counts as done chapter tasks
   const tasksDone = s.tasksDone ?? (s.v === 1 ? v1Tasks(cafe) : []);
+  const cafeTier = tiersFromTasks(tasksDone, CAFE_ROOMS, CAFE_SLOTS.length);
+  cafe.forEach((room, r) => room.forEach((v, i) => {
+    if (v > cafeTier[r][i]) room[i] = cafeTier[r][i];
+  }));
   return {
     ...base,
     ...s,
@@ -107,8 +115,8 @@ export function migrate(raw: unknown): SaveData {
     daily: { ...base.daily, ...(s.daily ?? {}) },
     login: { ...base.login, ...(s.login ?? {}) },
     cafe,
-    // before renovation stages every variant was free to pick: keep what the player already chose
-    cafeTier: base.cafeTier.map((room, r) => room.map((v, i) => s.cafeTier?.[r]?.[i] ?? (cafe[r][i] >= 0 ? 2 : v))),
+    // looks are unlocked only by renovation tasks; a piece shown in a look not yet earned falls back
+    cafeTier,
     friend: { ...(s.friend ?? {}) },
   };
 }
