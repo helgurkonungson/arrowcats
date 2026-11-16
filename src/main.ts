@@ -17,7 +17,7 @@ const fonts = Promise.race([
 ]).catch(() => undefined);
 
 Promise.all([initState(), fonts]).then(() => {
-  new Phaser.Game({
+  (window as unknown as { __game: Phaser.Game }).__game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'app',
     width: W,

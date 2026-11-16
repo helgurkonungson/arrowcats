@@ -53,8 +53,9 @@ const btn = (x: number, y: number, w: number, h: number): Rect => ({ x, y, w, h 
 export const CAFE_UI = {
   back: btn(64, 64, 96, 96),
   stars: btn(720 - 24 - 65, 64, 130, 56),
-  prevRoom: btn(44, 300, 72, 72),
-  nextRoom: btn(720 - 44, 300, 72, 72),
+  // labelled pills ("◀ Hall" / "Attic ▶") so they never read as the Back button
+  prevRoom: btn(96, 215, 168, 64),
+  nextRoom: btn(720 - 96, 215, 168, 64),
   tips: btn(130, 1065, 210, 70),
   taskPanel: btn(360, 1190, 680, 136),
   visitor: btn(440, 710, 160, 120),

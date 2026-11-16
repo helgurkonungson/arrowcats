@@ -24,24 +24,13 @@ export interface Chapter {
 }
 
 // slot indices follow CAFE_SLOTS: window, lamp, post, sofa, counter.
-// Costs grow with the renovation stage (13 / 21 / 29 ⭐ per chapter), like area tasks in Royal Match.
-const tasks = (key: string, stage = 0): Task[] => {
-  const s = 1 + stage; // story task
-  const d = 2 + stage; // décor task
-  return [
-    { id: `${key}_s1`, kind: 'story', cost: s },
-    { id: `${key}_d0`, kind: 'decor', cost: d, slot: 0 },
-    { id: `${key}_d1`, kind: 'decor', cost: d, slot: 1 },
-    { id: `${key}_s2`, kind: 'story', cost: s },
-    { id: `${key}_d2`, kind: 'decor', cost: d, slot: 2 },
-    { id: `${key}_d3`, kind: 'decor', cost: d, slot: 3 },
-    { id: `${key}_s3`, kind: 'story', cost: s },
-    { id: `${key}_d4`, kind: 'decor', cost: d, slot: 4 },
-  ];
-};
+// Every task changes something you can see (playtest: story-only tasks felt like nothing happened).
+// Costs grow with the renovation stage: 15 / 25 / 35 ⭐ per chapter, like area tasks in Royal Match.
+const tasks = (key: string, stage = 0): Task[] =>
+  [0, 1, 2, 3, 4].map((slot) => ({ id: `${key}_d${slot}`, kind: 'decor' as const, cost: 3 + 2 * stage, slot }));
 
 const chapter = (key: string, room: number, stage: number, resident: Speaker, scenes: Speaker[][]): Chapter =>
-  ({ key, room, stage, resident, tasks: tasks(key, stage), sceneAfter: [2, 5, 7], scenes });
+  ({ key, room, stage, resident, tasks: tasks(key, stage), sceneAfter: [1, 3, 4], scenes });
 
 /** Hall and attic are renovated three times: furnish → cozy → deluxe (the 3 art variants of each piece). */
 export const CHAPTERS: Chapter[] = [

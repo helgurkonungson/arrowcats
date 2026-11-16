@@ -73,17 +73,17 @@ describe('save', () => {
 import { CHAPTERS, chapterCost, doTask, nextTask, progress, starsToScene } from '../src/core/meta';
 
 describe('meta', () => {
-  it('chapters cost 13 / 21 / 29 stars by stage with scenes after tasks 3, 6 and 8', () => {
+  it('chapters cost 15 / 25 / 35 stars by stage with scenes after tasks 2, 4 and 5', () => {
     for (const c of CHAPTERS) {
-      expect(chapterCost(c)).toBe([13, 21, 29][c.stage]);
-      expect(c.sceneAfter).toEqual([2, 5, 7]);
+      expect(chapterCost(c)).toBe([15, 25, 35][c.stage]);
+      expect(c.sceneAfter).toEqual([1, 3, 4]);
       expect(c.scenes.length).toBe(3);
     }
   });
 
   it('walks through chapters, scenes and stars', () => {
     const st = { stars: 0, tasksDone: [] as string[] };
-    expect(starsToScene(st.tasksDone, 0)).toBe(5); // 1 + 2 + 2
+    expect(starsToScene(st.tasksDone, 0)).toBe(6); // 3 + 3
     expect(doTask(st)).toBeNull();
     st.stars = 500;
     const scenes: string[] = [];
@@ -242,7 +242,7 @@ describe('loops', () => {
     const costs = CH.map(chapterCost);
     for (let i = 2; i < costs.length; i++) expect(costs[i]).toBeGreaterThan(costs[i - 2]);
     expect(costs.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(120);
-    expect(new Set(CH.flatMap((c) => c.tasks.map((t) => t.id))).size).toBe(CH.length * 8);
+    expect(new Set(CH.flatMap((c) => c.tasks.map((t) => t.id))).size).toBe(CH.length * 5);
     expect(chapterChest(5).fish).toBeGreaterThan(chapterChest(0).fish);
     expect(roomChapter([], 0)).toBe(0);
     expect(roomChapter([], 1)).toBe(1);
@@ -264,5 +264,23 @@ describe('loops', () => {
     expect(streakBonus(7).fishBonus).toBe(1);
     expect(newTier(5)).toBe(5);
     expect(newTier(6)).toBe(0);
+  });
+});
+
+describe('fish sink and board ramp (2026-11-16)', () => {
+  it('treat adds friendship once per day', async () => {
+    const { addFriendship, canTreat, TREAT } = await import('../src/core/friend');
+    const f: Record<number, number> = {};
+    expect(addFriendship(f, [2], TREAT.points)).toEqual([[2, 1]]);
+    expect(f[2]).toBe(5);
+    expect(canTreat({ 2: '2026-11-16' }, 2, '2026-11-16')).toBe(false);
+    expect(canTreat({ 2: '2026-11-15' }, 2, '2026-11-16')).toBe(true);
+  });
+  it('boards grow fast: ~9x11 by level 10, max 11x14', async () => {
+    const { levelParams } = await import('../src/core/levels');
+    const p10 = levelParams(10), p30 = levelParams(30);
+    expect(p10.w * p10.h).toBeGreaterThanOrEqual(100);
+    expect(p30.w).toBe(11); expect(p30.h).toBe(14);
+    for (let n = 1; n <= 300; n++) { const p = levelParams(n); expect(p.w).toBeLessThanOrEqual(11); expect(p.h).toBeLessThanOrEqual(14); }
   });
 });

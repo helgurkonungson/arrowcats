@@ -58,13 +58,16 @@ export class CafeScene extends Phaser.Scene {
     txt(this, W / 2, 128, t('comfort', { n: comfort(save.cafe, save.cafeTier), r: tipsRate(save.cafe, save.cafeTier) }), 24);
     // room switch arrows: up on the wall, away from decor tap areas (see cafeLayout + layout test)
     const { prevRoom: pr, nextRoom: nr } = CAFE_UI;
-    if (r > 0) iconButton(this, pr.x, pr.y, 'back', () => this.scene.restart({ room: r - 1 }), pr.w);
+    // room switch = labelled pills ("◀ Hall" / "Attic ▶"); a bare chevron read as the Back button
+    const roomName = (i: number) => t('chapter_' + CHAPTERS.find((c) => c.room === i)!.key);
+    if (r > 0) button(this, pr.x, pr.y, pr.w, pr.h, '◀ ' + roomName(r - 1), () => this.scene.restart({ room: r - 1 }), { color: C.blue, size: 26 });
     if (r < CAFE_ROOMS - 1) {
-      const nb = iconButton(this, nr.x, nr.y, 'next', () => {
+      const open = this.roomUnlocked(r + 1);
+      const nb = button(this, nr.x, nr.y, nr.w, nr.h, (open ? '' : '🔒 ') + roomName(r + 1) + ' ▶', () => {
         if (!this.roomUnlocked(r + 1)) return toast(this, t('roomLocked'));
         this.scene.restart({ room: r + 1 });
-      }, nr.w);
-      if (!this.roomUnlocked(r + 1)) nb.setAlpha(0.6);
+      }, { color: C.blue, size: 26 });
+      if (!open) nb.setAlpha(0.6);
     }
 
     const task = nextTask(save.tasksDone);

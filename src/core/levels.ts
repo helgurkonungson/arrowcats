@@ -49,14 +49,18 @@ export function levelParams(n: number): GenParams {
   const saw = [0, 1, 2, -1][tier % 4];
   // tuned 2026-11-16 after playtest "too easy": bigger boards sooner, denser, longer bent cats,
   // and `tangle` makes each new cat block cats that are still free (few exits visible at a time)
+  // 2026-11-16 (2nd playtest): arrows games go big fast once the rules are learned – about 10×11 by
+  // level 10 and the full 11×14 by level ~14; later levels breathe with the saw (−1 column) and get
+  // harder through tangle and depth. 11×14 still gives ~61 px cells on the 720-wide screen.
+  const breath = saw < 0 && tier > 10 ? 1 : 0;
   return {
-    w: clamp(5 + Math.floor(tier / 8), 5, 10),
-    h: clamp(6 + Math.floor(tier / 6), 6, 14),
+    w: clamp(7 + Math.floor(tier / 2) - breath, 6, 11),
+    h: clamp(8 + Math.floor(tier * 0.6) - 2 * breath, 8, 14),
     fill: clamp(0.68 + tier * 0.004 + saw * 0.03 + (hard ? 0.06 : 0), 0.6, 0.94),
     minLen: 2,
     maxLen: clamp(4 + Math.floor(tier / 10), 4, 9),
     turn: clamp(0.3 + tier * 0.004, 0.3, 0.55),
-    tangle: clamp(0.4 + tier * 0.03 + (hard ? 0.3 : 0), 0.4, 1),
+    tangle: clamp(0.5 + tier * 0.04 + (hard ? 0.3 : 0), 0.5, 1),
     boxes: n >= 31 && n % 3 === 1 ? 1 + (n % 2) : 0,
     sleepy: n === 16 ? 0.3 : n > 16 ? 0.08 : 0,
     breeds: Array.from({ length: clamp(3 + Math.floor(n / 6), 3, COMMON) }, (_, i) => i),

@@ -44,6 +44,8 @@ export interface SaveData {
   winStreak: number;
   /** breed -> rescued cats of that breed (friendship, long loop) */
   friend: Record<number, number>;
+  /** breed -> last local date it got a fish treat (fish sink, once per day per breed) */
+  friendTreat: Record<number, string>;
   daily: { last: string; streak: number; results: Record<string, DailyResult> };
   login: { last: string; streak: number };
   muted: boolean;
@@ -82,6 +84,7 @@ export function defaultSave(): SaveData {
     chapterIntro: -1,
     winStreak: 0,
     friend: {},
+    friendTreat: {},
     daily: { last: '', streak: 0, results: {} },
     login: { last: '', streak: 0 },
     muted: false,
@@ -118,6 +121,7 @@ export function migrate(raw: unknown): SaveData {
     // looks are unlocked only by renovation tasks; a piece shown in a look not yet earned falls back
     cafeTier,
     friend: { ...(s.friend ?? {}) },
+    friendTreat: { ...(s.friendTreat ?? {}) },
   };
 }
 

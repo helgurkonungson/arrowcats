@@ -20,13 +20,16 @@ export const BREEDS: Breed[] = [
   { key: 'golden', body: 0xffd54a, accent: 0xf0a500, rare: true },
 ];
 
-export const COST = { hint: 30, feed: 80, heart: 50 };
+// raised 2026-11-16: big boards earn many fish, boosters must stay a real decision
+export const COST = { hint: 60, feed: 150, heart: 100 };
 export const FISH_PER_CAT = 1;
 export const levelReward = (n: number, hard: boolean) => (hard ? 40 : 10 + ((n * 7) % 11));
 export const DAILY_REWARD = 30;
 export const DAILY_STREAK_BONUS: Record<number, number> = { 3: 50, 7: 150, 30: 500 };
 export const loginReward = (streak: number) => Math.min(10 + streak * 10, 70);
 export const COMBO_WINDOW_MS = 1500;
+/** extra fish per cat during a combo is capped (uncapped combos flooded the wallet on big boards) */
+export const COMBO_BONUS_MAX = 2;
 
 export const CAFE_SLOTS = ['window', 'lamp', 'post', 'sofa', 'counter'] as const;
 export const CAFE_ROOMS = 2;

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Board } from '../core/board';
 import {
-  COMBO_WINDOW_MS, COST, DAILY_REWARD, DAILY_STREAK_BONUS, FISH_PER_CAT, levelReward, BREEDS,
+  COMBO_BONUS_MAX, COMBO_WINDOW_MS, COST, DAILY_REWARD, DAILY_STREAK_BONUS, FISH_PER_CAT, levelReward, BREEDS,
 } from '../core/content';
 import { dailyNumber, getDaily, getLevel, TUTORIAL_COUNT } from '../core/levels';
 import { prevDate } from '../core/save';
@@ -421,8 +421,8 @@ export class LevelScene extends Phaser.Scene {
     this.lastExit = now;
     let gain = FISH_PER_CAT;
     if (this.combo >= 2) {
-      gain += this.combo - 1;
-      toast(this, t('combo', { n: this.combo, f: this.combo - 1 }), H - 240);
+      gain += Math.min(this.combo - 1, COMBO_BONUS_MAX);
+      toast(this, t('combo', { n: this.combo, f: Math.min(this.combo - 1, COMBO_BONUS_MAX) }), H - 240);
       sfx.combo(this.combo);
     }
     this.earned += gain;

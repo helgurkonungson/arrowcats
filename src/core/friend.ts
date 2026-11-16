@@ -18,13 +18,17 @@ export function friendProgress(points: number) {
 export const friendReward = (level: number) => ({ fish: 20 * level, stars: level === 5 ? 1 : level === 10 ? 3 : 0 });
 
 /** Adds points per breed; returns the levels reached during this call as [breed, level]. */
-export function addFriendship(friend: Record<number, number>, rescued: number[]): [number, number][] {
+export function addFriendship(friend: Record<number, number>, rescued: number[], points = 1): [number, number][] {
   const ups: [number, number][] = [];
   for (const b of rescued) {
     const before = friendLevel(friend[b] ?? 0);
-    friend[b] = (friend[b] ?? 0) + 1;
+    friend[b] = (friend[b] ?? 0) + points;
     const after = friendLevel(friend[b]);
     if (after > before) ups.push([b, after]);
   }
   return ups;
 }
+
+/** Fish sink (2026-11-16): treat a breed once a day for TREAT.cost fish, +TREAT.points friendship. */
+export const TREAT = { cost: 100, points: 5 };
+export const canTreat = (treat: Record<number, string>, breed: number, today: string) => treat[breed] !== today;

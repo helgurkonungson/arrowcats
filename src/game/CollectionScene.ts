@@ -5,7 +5,8 @@ import { rewardText } from '../core/retention';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { art } from './art';
-import { FRIEND_MAX, friendLevel, friendProgress } from '../core/friend';
+import { addFriendship, canTreat, FRIEND_MAX, friendLevel, friendProgress, friendReward, TREAT } from '../core/friend';
+import { utcDate } from '../core/levels';
 import { sfx } from './sfx';
 import { grant, persist, platform, save } from './state';
 import { button, C, modal, toast, txt, W, H, backButton, panel } from './ui';
@@ -16,7 +17,13 @@ export class CollectionScene extends Phaser.Scene {
     super('Collection');
   }
 
+  private msg = '';
+  init(d: { msg?: string }) {
+    this.msg = d?.msg ?? '';
+  }
+
   create() {
+    if (this.msg) this.time.delayedCall(50, () => toast(this, this.msg, 1150));
     art(this, 'bg_album', W / 2, H / 2, W, H, true);
     backButton(this, () => this.scene.start('Menu'));
     txt(this, W / 2, 70, t('collection'), 40);
@@ -64,13 +71,47 @@ export class CollectionScene extends Phaser.Scene {
       g.fillStyle(C.latte, 1).fillRoundedRect(cx - 12, cy + 82, bw, 12, 6);
       g.fillStyle(lv >= FRIEND_MAX ? 0xe0a100 : 0xf0606e, 1).fillRoundedRect(cx - 12, cy + 82, Math.max(8, bw * friendProgress(pts)), 12, 6);
       const zone = this.add.zone(cx, cy, 156, 230).setInteractive({ useHandCursor: true });
-      zone.on('pointerdown', () => this.pickAccessory(b));
+      zone.on('pointerdown', () => this.cardMenu(b));
+      if (canTreat(save.friendTreat, b, utcDate())) txt(this, cx + 58, cy - 92, '🐟', 24);
     } else {
       g.fillStyle(C.latte, 1).fillCircle(cx, cy - 25, 40);
       txt(this, cx, cy - 25, '?', 44, '#d9bf9b');
       txt(this, cx, cy + 65, t('unknown'), 22);
     }
     if (breed.rare) txt(this, cx + 55, cy - 92, '★', 28, '#e0a100');
+  }
+
+  /** Card menu: daily fish treat (fish sink, grows friendship) or accessory. */
+  private cardMenu(b: number) {
+    const name = t('breed_' + BREEDS[b].key);
+    const today = utcDate();
+    const can = canTreat(save.friendTreat, b, today);
+    const close = modal(this, name, [t('treatText', { p: TREAT.points })], [
+      {
+        label: can ? t('treatBtn', { n: TREAT.cost, p: TREAT.points }) : t('treatDone'),
+        color: C.green,
+        disabled: !can,
+        onClick: () => {
+          if (!can) return;
+          if (save.fish < TREAT.cost) return toast(this, t('noFish'), 1150);
+          save.fish -= TREAT.cost;
+          save.friendTreat[b] = today;
+          let msg = t('treatThanks', { name, p: TREAT.points });
+          for (const [, lv] of addFriendship(save.friend, [b], TREAT.points)) {
+            const r = friendReward(lv);
+            save.fish += r.fish;
+            save.stars += r.stars;
+            msg = t('friendUp', { name, n: lv, r: r.fish + ' 🐟' + (r.stars ? ` +${r.stars} ⭐` : '') });
+          }
+          persist();
+          sfx.star();
+          close();
+          this.scene.restart({ msg });
+        },
+      },
+      { label: t('chooseAccessory'), color: C.blue, onClick: () => { close(); this.pickAccessory(b); } },
+      { label: '✕', color: C.gray, onClick: () => close() },
+    ]);
   }
 
   private pickAccessory(b: number) {
