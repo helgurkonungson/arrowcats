@@ -4,6 +4,7 @@ import { CHAPTERS, INTRO, nextTask, progress, starsToScene } from '../core/meta'
 import { CALENDAR, claimCalendar, rewardText, streakState, tipsAvailable, tipsCap } from '../core/retention';
 import { prevDate } from '../core/save';
 import { eventAt, updateVisitor } from '../core/live';
+import { DAILY_FROM_LEVEL } from '../core/tutorial';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { playMusic, setMuted, sfx } from './sfx';
@@ -63,8 +64,14 @@ export class MenuScene extends Phaser.Scene {
     const play = button(this, W / 2, 665, 560, 132, t('play', { n: save.level }), () =>
       this.scene.start('Level', { mode: 'level', n: save.level }), { color: C.primary, size: 46, icon: 'play' });
     this.tweens.add({ targets: play, scale: 1.035, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    button(this, W / 2, 815, 560, 96, t(dailyDone ? 'dailyDone' : 'daily'), () =>
-      this.scene.start('Level', { mode: 'daily', date: today }), { color: C.panel, size: 34, icon: 'daily' });
+    // the daily opens after level 5: it can hold sleepy cats, taught on level 5 (core/tutorial.ts)
+    const dailyOpen = save.level >= DAILY_FROM_LEVEL;
+    const db = button(this, W / 2, 815, 560, 96,
+      dailyOpen ? t(dailyDone ? 'dailyDone' : 'daily') : '🔒 ' + t('dailyLocked', { n: DAILY_FROM_LEVEL - 1 }), () => {
+        if (!save.level || save.level < DAILY_FROM_LEVEL) return toast(this, t('dailyLocked', { n: DAILY_FROM_LEVEL - 1 }));
+        this.scene.start('Level', { mode: 'daily', date: today });
+      }, { color: C.panel, size: dailyOpen ? 34 : 28, icon: dailyOpen ? 'daily' : undefined });
+    if (!dailyOpen) db.setAlpha(0.6);
 
     const tips = tipsAvailable(save.cafe, save.tips.since, Date.now(), save.cafeTier);
     if (updateVisitor(save.visit, save.cafe, save.breeds, Date.now(), Math.random())) this.time.delayedCall(400, () => toast(this, t('visitorArrived'), 470));
@@ -79,13 +86,23 @@ export class MenuScene extends Phaser.Scene {
     tile(this, W / 2, ty, tw, 170, 'collection', t('collection'), () => this.scene.start('Collection'));
     const evTile = tile(this, W / 2 + tw + 14, ty, tw, 170, 'paw', `${t('event')}`, () => this.scene.start('Event'));
     const paws = save.event.id === ev.id ? save.event.paws : 0;
-    if (paws > 0) evTile.add(txt(this, tw / 2 - 18, -70, String(paws), 24, '#ffffff').setStroke(C.ink, 6));
+    if (paws > 0) {
+      // paw counter as a small gold pill inside the tile's top-right corner (it used to stick out)
+      const label = txt(this, 0, 0, String(paws), 22);
+      const pw = Math.max(40, label.width + 20);
+      const px = tw / 2 - 14 - pw / 2;
+      const py = -170 / 2 + 26;
+      const pg = this.add.graphics();
+      pg.fillStyle(C.inkN, 1).fillRoundedRect(px - pw / 2 - 2, py - 18, pw + 4, 36, 18);
+      pg.fillStyle(C.gold, 1).fillRoundedRect(px - pw / 2, py - 16, pw, 32, 16);
+      label.setPosition(px, py);
+      evTile.add([pg, label]);
+    }
 
     const st = streakState(save.daily.last, save.daily.streak, today);
     if (st.alive) {
       txt(this, W / 2, 1160, st.atRisk ? t('streakRisk', { n: st.streak }) : t('streakFlame', { n: st.streak }), 26, st.atRisk ? '#c9482a' : C.ink);
     }
-    txt(this, W / 2, 1222, t('tomorrow', { r: rewardText(CALENDAR[save.calendar.day % 7]) }), 24, C.muted);
     void fish;
 
     // first launch: story intro instead of a stack of popups
@@ -101,6 +118,8 @@ export class MenuScene extends Phaser.Scene {
       save.login = { last: today, streak };
     }
     const claim = claimCalendar(save.calendar, today);
+    // drawn after the claim so it already shows tomorrow's gift (it was one day behind under the popup)
+    txt(this, W / 2, 1222, t('tomorrow', { r: rewardText(CALENDAR[save.calendar.day % 7]) }), 24, C.muted);
     if (claim) {
       grant(claim.reward);
       const show = () => this.showCalendar(claim.index, () => this.scene.restart());
@@ -113,7 +132,7 @@ export class MenuScene extends Phaser.Scene {
   /** Opened from a friend's share link: invite straight into today's puzzle. */
   private offerChallenge(today: string) {
     const ch = challenge();
-    if (!ch || challengeOffered() || save.daily.results[today]) return;
+    if (!ch || challengeOffered() || save.daily.results[today] || save.level < DAILY_FROM_LEVEL) return;
     markChallengeOffered();
     platform.track('challenge_open', { sameDay: ch.date === today });
     const close = modal(this, t('challengeTitle'), [ch.date === today ? t('challengeText', { t: fmtTime(ch.time) }) : t('challengeTextOld')], [
@@ -131,14 +150,15 @@ export class MenuScene extends Phaser.Scene {
     panel(g, 30, top, W - 60, 510, 40);
     c.add([dim, g, txt(this, W / 2, top + 60, t('calendarTitle'), 40)]);
     CALENDAR.forEach((r, i) => {
-      const x = 72 + i * 96;
+      // 7 cells of 76 px with 12 px gaps leave ~28 px of air to the panel edge on both sides
+      const x = W / 2 + (i - 3) * 88;
       const y = top + 190;
       const cell = this.add.graphics();
-      cell.fillStyle(i === today ? C.gold : i < today ? 0xd8eccf : C.latte, 1).fillRoundedRect(x - 42, y - 70, 84, 140, 16);
-      cell.lineStyle(3, C.inkN, 1).strokeRoundedRect(x - 42, y - 70, 84, 140, 16);
-      c.add([cell, txt(this, x, y - 45, String(i + 1), 24), icon(this, i === 6 ? 'gift' : r.stars ? 'star' : r.paws ? 'paw' : 'fish', x, y + 5, 52),
+      cell.fillStyle(i === today ? C.gold : i < today ? 0xd8eccf : C.latte, 1).fillRoundedRect(x - 38, y - 70, 76, 140, 16);
+      cell.lineStyle(3, C.inkN, 1).strokeRoundedRect(x - 38, y - 70, 76, 140, 16);
+      c.add([cell, txt(this, x, y - 45, String(i + 1), 24), icon(this, i === 6 ? 'gift' : r.stars ? 'star' : r.paws ? 'paw' : 'fish', x, y + 5, 46),
         txt(this, x, y + 48, String(r.fish ?? r.stars ?? r.paws), 22)]);
-      if (i < today) c.add(icon(this, 'check', x + 26, y - 50, 34));
+      if (i < today) c.add(icon(this, 'check', x + 24, y - 50, 30));
     });
     c.add(txt(this, W / 2, top + 320, '+' + rewardText(CALENDAR[today]), 36));
     c.add(txt(this, W / 2, top + 370, t('tomorrow', { r: rewardText(CALENDAR[(today + 1) % 7]) }), 26, C.muted));

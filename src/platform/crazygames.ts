@@ -8,6 +8,7 @@ interface CGSdk {
   environment: 'local' | 'crazygames' | 'disabled';
   ad: { requestAd(type: 'midgame' | 'rewarded', cb: AdCallbacks): void; hasAdblock(): Promise<boolean> };
   data: { getItem(k: string): string | null; setItem(k: string, v: string): void };
+  user?: { systemInfo?: { locale?: string } };
   game: {
     gameplayStart(): void;
     gameplayStop(): void;
@@ -55,6 +56,12 @@ export class CrazyGamesPlatform extends LocalPlatform {
     });
     this.applyMute();
     void s.ad.hasAdblock().then((b) => b && (this.adsOff = true)).catch(() => undefined);
+  }
+
+  /** QA requirement: use the locale from the SDK system info, fall back to the browser / English. */
+  language() {
+    const loc = this.on ? sdk()?.user?.systemInfo?.locale : undefined;
+    return loc ? loc.slice(0, 2).toLowerCase() : super.language();
   }
 
   adsReady() {

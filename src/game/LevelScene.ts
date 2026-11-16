@@ -10,7 +10,7 @@ import { headDir } from '../core/board';
 import { CHAPTERS, nextTask, progress, starsToScene } from '../core/meta';
 import { newTier, streakBonus } from '../core/streak';
 import { addFriendship, friendReward } from '../core/friend';
-import { levelTips } from '../core/tutorial';
+import { HANDS_ON, levelTips } from '../core/tutorial';
 import { showTips } from './tips';
 import { t } from '../i18n';
 import { drawCat, Mood } from './drawCat';
@@ -39,6 +39,9 @@ interface CatView {
 }
 
 
+/** levels 1–2 get the coach bubble and the auto-pulse on a free cat */
+const COACHED = 2;
+
 export class LevelScene extends Phaser.Scene {
   private d!: LevelData;
   private level!: Level;
@@ -53,6 +56,10 @@ export class LevelScene extends Phaser.Scene {
   private ox = 0;
   private oy = 0;
   private feedArmed = false;
+  /** hands-on lesson in progress: only the named action is allowed, and it is free */
+  private lesson: '' | 'hint' | 'hintTap' | 'feed' | 'feedTap' | 'sleepy' = '';
+  private lessonCat = -1;
+  private lessonMark?: Phaser.GameObjects.GameObject[];
   private combo = 0;
   private lastExit = -1e9;
   private earned = 0;
@@ -133,7 +140,7 @@ export class LevelScene extends Phaser.Scene {
     zone.on('pointerdown', (p: Phaser.Input.Pointer) => this.onTap(p.x, p.y));
 
     this.drawHud();
-    if (d.mode === 'level' && d.n <= TUTORIAL_COUNT) {
+    if (d.mode === 'level' && d.n <= COACHED) {
       this.coach(t(d.n === 1 ? 'tut1' : 'tut2'));
       this.time.delayedCall(600, () => this.tutorialHint());
     }
@@ -144,14 +151,19 @@ export class LevelScene extends Phaser.Scene {
       mode: d.mode, n: d.mode === 'level' ? d.n : 0, hard: !!this.level.hard,
       sleepy: this.level.cats.some((c) => c.sleepy), boxes: this.level.boxes.length > 0, winStreak: save.winStreak,
     }, save.tipsSeen);
-    if (tips.length) showTips(this, tips, () => (this.startTime = this.time.now)); // daily timer starts after reading
+    if (tips.length) {
+      showTips(this, tips, () => {
+        this.startTime = this.time.now; // daily timer starts after reading
+        if (HANDS_ON.includes(tips[0])) this.startLesson(tips[0] as 'hint' | 'feed' | 'sleepy');
+      });
+    }
     playMusic('music_level');
     platform.gameplayStart();
     platform.track('level_start', { id: this.level.id });
   }
 
   update() {
-    if (this.timerText && !this.ended) this.timerText.setText('⏱ ' + fmtTime((this.time.now - this.startTime) / 1000));
+    if (this.timerText && !this.ended) this.timerText.setText(fmtTime((this.time.now - this.startTime) / 1000));
   }
 
   // ---------- drawing ----------
@@ -280,7 +292,10 @@ export class LevelScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(C.inkN, 1).fillRoundedRect(-70, 44, 140, 44, 22);
     g.fillStyle(C.panel, 1).fillRoundedRect(-67, 47, 134, 38, 19);
-    b.add([g, icon(this, 'fish', -36, 66, 40), txt(this, 14, 67, String(cost), 26)]);
+    const price = txt(this, 14, 67, String(cost), 26);
+    const fishIcon = icon(this, 'fish', -36, 66, 40);
+    b.add([g, fishIcon, price]);
+    b.setData('price', price).setData('fishIcon', fishIcon);
     return b;
   }
 
@@ -300,9 +315,63 @@ export class LevelScene extends Phaser.Scene {
 
   private refreshUi() {
     this.fish.refresh();
+    if (this.lesson === 'hint' || this.lesson === 'feed') return; // the lesson button stays bright
     this.hintBtn.setAlpha(this.freeHint || this.wallet() >= COST.hint ? 1 : 0.5);
     this.feedBtn.setAlpha(this.feedArmed ? 0.7 : this.wallet() >= COST.feed ? 1 : 0.5);
     this.feedBtn.setScale(this.feedArmed ? 1.06 : 1);
+  }
+
+  /** Hands-on lesson: highlight the one thing to press; it is free and nothing else reacts. */
+  private startLesson(k: 'hint' | 'feed' | 'sleepy') {
+    if (this.ended) return;
+    if (k === 'sleepy') {
+      const v = [...this.views.values()].find((x) => !x.awake);
+      if (!v) return;
+      this.lesson = 'sleepy';
+      this.lessonCat = v.cat.id;
+      v.hint = true;
+      this.redraw(v);
+      return;
+    }
+    const btn = k === 'hint' ? this.hintBtn : this.feedBtn;
+    this.lesson = k;
+    this.priceTag(btn, t('free'));
+    btn.setAlpha(1);
+    const g = this.add.graphics().setDepth(50);
+    g.lineStyle(8, C.gold, 1).strokeRoundedRect(btn.x - 166, btn.y - 66, 332, 132, 30);
+    this.tweens.add({ targets: g, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: btn, scale: 1.06, duration: 420, yoyo: true, repeat: -1 });
+    const arrow = txt(this, btn.x, btn.y - 120, '👇', 56).setDepth(50);
+    this.tweens.add({ targets: arrow, y: btn.y - 100, duration: 420, yoyo: true, repeat: -1 });
+    this.lessonMark = [g, arrow, btn];
+  }
+
+  /** '' = normal price with the fish icon; otherwise a centred word (e.g. "Free") in the tag. */
+  private priceTag(btn: Phaser.GameObjects.Container, word: string) {
+    const price = btn.getData('price') as Phaser.GameObjects.Text;
+    (btn.getData('fishIcon') as Phaser.GameObjects.Image | undefined)?.setVisible(!word);
+    if (word) price.setText(word).setX(0).setFontSize(price.width > 120 ? 20 : 24);
+    else price.setText(String(btn === this.hintBtn ? COST.hint : COST.feed)).setX(14).setFontSize(26);
+    if (word && price.width > 124) price.setScale(124 / price.width);
+    else price.setScale(1);
+  }
+
+  private clearMark() {
+    for (const o of this.lessonMark ?? []) {
+      this.tweens.killTweensOf(o);
+      if (o === this.hintBtn || o === this.feedBtn) (o as Phaser.GameObjects.Container).setScale(1);
+      else o.destroy();
+    }
+    this.lessonMark = undefined;
+    this.priceTag(this.hintBtn, '');
+    this.priceTag(this.feedBtn, '');
+  }
+
+  private endLesson() {
+    this.clearMark();
+    this.lesson = '';
+    this.lessonCat = -1;
+    this.refreshUi();
   }
 
   /** Tutorial coach mark: speech bubble above the boosters. */
@@ -335,7 +404,7 @@ export class LevelScene extends Phaser.Scene {
         return { x: p.x, y: p.y };
       }),
       fish: () => this.wallet(),
-      state: () => ({ ended: this.ended, hearts: this.hearts, cats: this.views.size, id: this.level.id }),
+      state: () => ({ ended: this.ended, hearts: this.hearts, cats: this.views.size, id: this.level.id, lesson: this.lesson, freeN: this.board.freeCats().length }),
       share: () => this.shareDaily(),
       // link preview image for index.html (tools/og.mjs): live board + palette, follows the art style
       og: async () => {
@@ -382,9 +451,12 @@ export class LevelScene extends Phaser.Scene {
     }
     const v = id >= 0 ? this.views.get(id) : undefined;
     if (!v || v.busy) return;
+    if (this.lesson === 'hint' || this.lesson === 'feed') return; // press the highlighted button first
+    if ((this.lesson === 'hintTap' || this.lesson === 'sleepy') && id !== this.lessonCat) return;
 
     if (this.feedArmed) {
-      if (!this.spend(COST.feed)) return;
+      if (this.lesson === 'feedTap') this.endLesson();
+      else if (!this.spend(COST.feed)) return;
       this.feedArmed = false;
       this.refreshUi();
       this.feed(v);
@@ -406,6 +478,7 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private exit(v: CatView, steps: number) {
+    if (v.cat.id === this.lessonCat) this.endLesson();
     this.taps.push('exit');
     const cat = v.cat;
     this.board.remove(cat.id);
@@ -454,7 +527,7 @@ export class LevelScene extends Phaser.Scene {
       this.refreshUi();
     }
     if (this.views.size === 0 && !this.ended) this.win();
-    else if (this.d.mode === 'level' && this.d.n <= TUTORIAL_COUNT) this.tutorialHint();
+    else if (this.d.mode === 'level' && this.d.n <= COACHED) this.tutorialHint();
   }
 
   private bonk(v: CatView, steps: number, blocker: number) {
@@ -501,13 +574,21 @@ export class LevelScene extends Phaser.Scene {
     if (this.ended) return;
     const free = this.board.freeCats().map((id) => this.views.get(id)!).filter((v) => v && !v.busy && !v.hint);
     if (!free.length) return;
-    if (this.freeHint) {
+    if (this.lesson && this.lesson !== 'hint') return;
+    if (this.lesson === 'hint') {
+      // lesson: free, then only the highlighted cat can be tapped
+      this.clearMark();
+    } else if (this.freeHint) {
       this.freeHint = false;
       this.refreshUi();
     } else if (!this.spend(COST.hint)) return toast(this, t('noFish'));
     const v = free.find((x) => x.awake) ?? free[0];
     v.hint = true;
     this.redraw(v);
+    if (this.lesson === 'hint') {
+      this.lesson = 'hintTap';
+      this.lessonCat = v.cat.id;
+    }
     this.tweens.add({ targets: v.g, alpha: 0.55, duration: 250, yoyo: true, repeat: 3 });
     this.taps.push('hint');
     platform.track('booster_used', { type: 'hint' });
@@ -515,6 +596,17 @@ export class LevelScene extends Phaser.Scene {
 
   private useFeed() {
     if (this.ended) return;
+    if (this.lesson && this.lesson !== 'feed') return;
+    if (this.lesson === 'feed') {
+      // lesson: free, any cat can go
+      this.clearMark();
+      this.priceTag(this.feedBtn, t('free')); // stays free until the cat is picked
+      this.lesson = 'feedTap';
+      this.feedArmed = true;
+      this.refreshUi();
+      toast(this, t('pickCat'), H - 240);
+      return;
+    }
     if (this.feedArmed) {
       // second press cancels
       this.feedArmed = false;
@@ -716,6 +808,7 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private leave() {
+    if (this.lesson) return; // finish the lesson first (it takes one tap)
     if (!this.ended && this.taps.length) this.breakStreak();
     platform.gameplayStop();
     this.scene.start('Menu');

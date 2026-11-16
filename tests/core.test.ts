@@ -273,7 +273,7 @@ describe('fish sink and board ramp (2026-11-16)', () => {
   it('boards grow fast: ~9x11 by level 10, max 11x14', async () => {
     const { levelParams } = await import('../src/core/levels');
     const p10 = levelParams(10), p30 = levelParams(30);
-    expect(p10.w * p10.h).toBeGreaterThanOrEqual(100);
+    expect(p10.w * p10.h).toBeGreaterThanOrEqual(130);
     expect(p30.w).toBe(11); expect(p30.h).toBe(14);
     for (let n = 1; n <= 300; n++) { const p = levelParams(n); expect(p.w).toBeLessThanOrEqual(11); expect(p.h).toBeLessThanOrEqual(14); }
   });
@@ -294,16 +294,39 @@ describe('few free cats + mini-tutorial + v5 reset (2026-11-16)', () => {
     }
     expect(strict).toBeGreaterThanOrEqual(ns.length - 2);
     expect(levelParams(6).maxFree).toBe(3);
+    expect(levelParams(13).maxFree).toBe(1);
     expect(levelParams(40).maxFree).toBe(1);
   }, 60000);
-  it('tips appear when the mechanic appears, max two per level, never twice', async () => {
-    const { levelTips } = await import('../src/core/tutorial');
-    const ctx = { mode: 'level' as const, n: 4, hard: false, sleepy: false, boxes: false, winStreak: 0 };
+  it('one lesson per level, core rules first, never twice', async () => {
+    const { levelTips, DAILY_FROM_LEVEL } = await import('../src/core/tutorial');
+    const { getLevel, LESSON } = await import('../src/core/levels');
+    const ctx = { mode: 'level' as const, n: 3, hard: false, sleepy: false, boxes: false, winStreak: 0 };
     expect(levelTips(ctx, [])).toEqual(['fewFree']);
-    expect(levelTips({ ...ctx, n: 16, sleepy: true }, ['fewFree', 'hint', 'feed'])).toEqual(['sleepy']);
-    expect(levelTips({ ...ctx, n: 31, boxes: true, winStreak: 3 }, ['fewFree', 'hint', 'feed'])).toEqual(['streak', 'boxes']);
+    expect(levelTips({ ...ctx, n: 4, winStreak: 3 }, ['fewFree'])).toEqual(['hint']);
+    expect(levelTips({ ...ctx, n: 5, sleepy: true }, ['fewFree', 'hint'])).toEqual(['sleepy']);
+    expect(levelTips({ ...ctx, n: 6 }, ['fewFree', 'hint', 'sleepy'])).toEqual(['feed']);
+    expect(levelTips({ ...ctx, n: 7, winStreak: 3 }, ['fewFree', 'hint', 'sleepy', 'feed'])).toEqual(['streak']);
     expect(levelTips({ ...ctx, mode: 'daily' }, ['daily'])).toEqual([]);
+    expect(DAILY_FROM_LEVEL).toBe(6);
+    // the sleepy lesson level has exactly one sleepy cat and it can leave at once
+    const { Board } = await import('../src/core/board');
+    const lv = getLevel(LESSON.sleepy);
+    const sl = lv.cats.filter((c) => c.sleepy);
+    expect(sl.length).toBe(1);
+    expect(new Board(lv).freeCats()).toContain(sl[0].id);
+    expect(getLevel(LESSON.boxes).boxes.length).toBeGreaterThan(0);
+    for (let n = 1; n < LESSON.sleepy; n++) expect(getLevel(n).cats.some((c) => c.sleepy)).toBe(false);
+    for (let n = 1; n < LESSON.boxes; n++) expect(getLevel(n).boxes.length).toBe(0);
   });
+  it('breeds arrive slowly: home set at 18, street at 75, daily only home', async () => {
+    const { getLevel, getDaily, BREED_AT } = await import('../src/core/levels');
+    const seen = new Set<number>();
+    for (let n = 1; n <= 17; n++) getLevel(n).cats.forEach((c) => seen.add(c.breed));
+    expect([...seen].sort()).toEqual([0, 1, 2]);
+    expect(getLevel(18).cats.some((c) => c.breed === 3)).toBe(true);
+    expect(BREED_AT[7]).toBe(75);
+    expect(getDaily('2026-11-16').cats.every((c) => c.breed < 4)).toBe(true);
+  }, 60000);
   it('v4 saves start over (purchases kept)', async () => {
     const { migrate } = await import('../src/core/save');
     const s = migrate({ v: 4, level: 35, fish: 3494, noAds: true, purchases: ['no_ads'] });

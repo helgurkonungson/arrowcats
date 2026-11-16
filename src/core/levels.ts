@@ -1,4 +1,5 @@
 import { GenParams, generateLevel } from './generator';
+import { Board } from './board';
 import { hashStr } from './rng';
 import { Cat, Level } from './types';
 
@@ -22,7 +23,7 @@ const TUTORIAL: Level[] = [
   {
     id: 'L2', w: 5, h: 6, boxes: [],
     cats: cats([
-      { b: 2, c: [[2, 3], [2, 4], [2, 5]] },
+      { b: 0, c: [[2, 3], [2, 4], [2, 5]] },
       { b: 0, c: [[0, 1], [1, 1], [2, 1]] },
       { b: 1, c: [[4, 2], [4, 3]] },
     ]),
@@ -30,10 +31,10 @@ const TUTORIAL: Level[] = [
   {
     id: 'L3', w: 5, h: 6, boxes: [],
     cats: cats([
-      { b: 2, c: [[2, 3], [2, 4], [2, 5]] },
+      { b: 0, c: [[2, 3], [2, 4], [2, 5]] },
       { b: 0, c: [[3, 2], [2, 2], [1, 2]] },
       { b: 1, c: [[4, 3], [4, 2], [4, 1]] },
-      { b: 3, c: [[0, 4], [1, 4]] },
+      { b: 1, c: [[0, 4], [1, 4]] },
       { b: 0, c: [[0, 0], [1, 0]] },
     ]),
   },
@@ -42,6 +43,24 @@ const TUTORIAL: Level[] = [
 export const TUTORIAL_COUNT = TUTORIAL.length;
 export const isHard = (n: number) => n > TUTORIAL_COUNT && n % 10 === 0;
 export const rareFor = (k: number) => RARE_FIRST + (k % 4);
+
+/**
+ * Level where each common breed first appears (index = breed). 2026-11-16 playtest: the home set was
+ * complete after level 3 and the street set after one daily; now home completes at 18, street at 75.
+ */
+export const BREED_AT = [1, 1, 8, 18, 30, 45, 60, 75];
+export const breedsAt = (n: number) => BREED_AT.map((at, b) => (at <= n ? b : -1)).filter((b) => b >= 0);
+
+/** Lesson levels (one mechanic per level, core/tutorial.ts). */
+export const LESSON = { fewFree: 3, hint: 4, sleepy: 5, feed: 6, boxes: 9 } as const;
+
+/** Sleepy lesson: exactly one sleepy cat, and it is a cat that can leave right away. */
+function makeSleepyLesson(lv: Level) {
+  for (const c of lv.cats) c.sleepy = false;
+  const id = new Board(lv).freeCats()[0];
+  const c = lv.cats.find((x) => x.id === id);
+  if (c) c.sleepy = true;
+}
 
 export function levelParams(n: number): GenParams {
   const tier = Math.max(0, n - 4);
@@ -52,22 +71,25 @@ export function levelParams(n: number): GenParams {
   // 2026-11-16 (2nd playtest): arrows games go big fast once the rules are learned – about 10×11 by
   // level 10 and the full 11×14 by level ~14; later levels breathe with the saw (−1 column) and get
   // harder through tangle and depth. 11×14 still gives ~61 px cells on the 720-wide screen.
-  const breath = saw < 0 && tier > 10 ? 1 : 0;
+  // 2026-11-16 (4th playtest): difficulty grows even faster – 11×14 and the 1-cat chain from level 11
+  // (levels 4–6 are the booster/sleepy lessons and keep 3 free cats)
+  const breath = saw < 0 && tier > 8 ? 1 : 0;
   return {
-    w: clamp(7 + Math.floor(tier / 2) - breath, 6, 11),
-    h: clamp(8 + Math.floor(tier * 0.6) - 2 * breath, 8, 14),
-    fill: clamp(0.68 + tier * 0.004 + saw * 0.03 + (hard ? 0.06 : 0), 0.6, 0.94),
+    w: clamp(8 + Math.floor(tier * 0.6) - breath, 6, 11),
+    h: clamp(9 + Math.floor(tier * 0.8) - 2 * breath, 8, 14),
+    fill: clamp(0.7 + tier * 0.006 + saw * 0.03 + (hard ? 0.06 : 0), 0.6, 0.94),
     minLen: 2,
-    maxLen: clamp(4 + Math.floor(tier / 10), 4, 9),
-    turn: clamp(0.3 + tier * 0.004, 0.3, 0.55),
-    tangle: clamp(0.5 + tier * 0.04 + (hard ? 0.3 : 0), 0.5, 1),
-    boxes: n >= 31 && n % 3 === 1 ? 1 + (n % 2) : 0,
-    sleepy: n === 16 ? 0.3 : n > 16 ? 0.08 : 0,
-    breeds: Array.from({ length: clamp(3 + Math.floor(n / 6), 3, COMMON) }, (_, i) => i),
-    depth: clamp(3 + Math.floor(tier / 3) + saw + (hard ? 4 : 0), 2, 22),
-    // 2026-11-16 (3rd playtest): only a few cats may be free at once – 3 while learning, then 2,
-    // then 1 (a chain: each exit opens the next). Breathers allow one more, hard levels are strict.
-    maxFree: hard ? 1 : clamp((tier < 6 ? 3 : tier < 16 ? 2 : 1) + (saw < 0 ? 1 : 0), 1, 3),
+    maxLen: clamp(4 + Math.floor(tier / 8), 4, 9),
+    turn: clamp(0.3 + tier * 0.006, 0.3, 0.55),
+    tangle: clamp(0.5 + tier * 0.06 + (hard ? 0.3 : 0), 0.5, 1),
+    // mechanics arrive with their lessons (core/tutorial.ts): sleepy cats at 5, boxes at 9
+    boxes: n === LESSON.boxes ? 2 : n > LESSON.boxes && n % 3 === 0 ? 1 + (n % 2) : 0,
+    sleepy: n > LESSON.sleepy + 1 ? 0.06 : 0,
+    breeds: breedsAt(n),
+    depth: clamp(3 + Math.floor(tier / 2) + saw + (hard ? 4 : 0), 2, 22),
+    // only a few cats may be free at once: 3 while learning, 2 on 7–10, then 1 (a chain where each
+    // exit opens the next). Breathers allow one more, hard levels are strict.
+    maxFree: hard ? 1 : clamp((tier < 3 ? 3 : tier < 7 ? 2 : 1) + (saw < 0 ? 1 : 0), 1, 3),
   };
 }
 
@@ -80,6 +102,10 @@ export function getLevel(n: number): Level {
   if (!lv) {
     lv = generateLevel(hashStr('lvl' + n), levelParams(n), key);
     lv.hard = isHard(n);
+    if (n === LESSON.sleepy) makeSleepyLesson(lv);
+    // a new breed shows up on the level where it is introduced
+    const nb = BREED_AT.indexOf(n);
+    if (nb >= 0 && !lv.cats.some((c) => c.breed === nb)) lv.cats[lv.cats.length - 1].breed = nb;
     cache.set(key, lv);
   }
   return lv;
@@ -98,7 +124,8 @@ export function getDaily(date: string): Level {
   const key = 'D' + date;
   let lv = cache.get(key);
   if (!lv) {
-    const p = { ...levelParams(35), sleepy: 0.1, breeds: [...Array(COMMON).keys()] };
+    // daily uses the home set only and never unlocks breeds (collection comes from levels and visitors)
+    const p = { ...levelParams(35), sleepy: 0.1, breeds: [0, 1, 2, 3] };
     lv = generateLevel(hashStr('daily' + date), p, key);
     cache.set(key, lv);
   }
