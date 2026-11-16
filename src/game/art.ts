@@ -38,10 +38,11 @@ export function art(s: Phaser.Scene, key: string, x: number, y: number, w: numbe
 
 export const HEAD_MOOD: Record<string, string> = { calm: 'calm', happy: 'happy', angry: 'offended', sleep: 'sleep' };
 
-/** Texture key of a generated head; a sleeping head falls back to the calm one until S23 exists. */
+/** Texture key of a generated head. Until the S23 sleeping heads exist, a sleeping cat uses the
+ * happy head (its eyes are closed arcs), never an open-eyed one. */
 export function headKey(s: Phaser.Scene, breedKey: string, mood: string) {
   const k = `head_${breedKey}_${HEAD_MOOD[mood] ?? 'calm'}`;
-  return mood === 'sleep' && !has(s, k) ? `head_${breedKey}_calm` : k;
+  return mood === 'sleep' && !has(s, k) ? `head_${breedKey}_happy` : k;
 }
 export const SPEAKER_ART: Record<string, string> = {
   murr: 'mentor_murr_calm', bun: 'resident_bun_calm', luna: 'resident_luna_calm',

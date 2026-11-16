@@ -12,28 +12,8 @@ import { rewarded, rewardedReady } from './ads';
 import { addFish, persist, platform, save, unlockBreed } from './state';
 import { button, C, dialog, iconButton, modal, pill, toast, txt, W, backButton, panel } from './ui';
 
-type Rect = { x: number; y: number; w: number; h: number };
-type Slot = (typeof CAFE_SLOTS)[number];
-/** Each room has its own furniture layout (and its own decor art, see Art/PROMPTS.md 1.7–1.8). */
-const SLOT_RECT: Record<Slot, Rect>[] = [
-  // floor starts at y≈870 in the hall art, ≈810 in the attic; floor pieces stand on it (see FLOOR_SLOTS)
-  { // hall: classic front room
-    window: { x: 360, y: 440, w: 280, h: 230 },
-    lamp: { x: 95, y: 745, w: 140, h: 390 },
-    post: { x: 630, y: 790, w: 140, h: 300 },
-    sofa: { x: 245, y: 870, w: 360, h: 200 },
-    counter: { x: 480, y: 935, w: 300, h: 180 },
-  },
-  { // attic: dormer on the right, pendant lantern under the beam, wall shelves, armchair, bar
-    window: { x: 500, y: 430, w: 220, h: 230 },
-    lamp: { x: 230, y: 360, w: 100, h: 230 },
-    post: { x: 150, y: 580, w: 170, h: 190 },
-    sofa: { x: 530, y: 860, w: 280, h: 210 },
-    counter: { x: 290, y: 930, w: 340, h: 180 },
-  },
-];
-/** Pieces that stand on the floor: their art is bottom-aligned to the slot so they never float. */
-const FLOOR_SLOTS: Slot[][] = [['lamp', 'post', 'sofa', 'counter'], ['sofa', 'counter']];
+import { CAFE_UI, FLOOR_SLOTS, type Rect, SLOT_HIT, SLOT_RECT } from './cafeLayout';
+
 const WALL = [0xf6dfc6, 0xe9e0ef]; // hall: peach, attic: dusty lavender (art bible color script)
 const FLOOR = [0xe3c49f, 0xd8b98e]; // hall: honey wood, attic: pine
 
@@ -71,13 +51,14 @@ export class CafeScene extends Phaser.Scene {
     txt(this, W / 2, 70, t('chapter_' + CHAPTERS[r].key), 34);
     pill(this, W - 24, 64, 'star', () => save.stars, 130);
     txt(this, W / 2, 128, t('comfort', { n: comfort(save.cafe), r: tipsRate(save.cafe) }), 24);
-    // room switch arrows sit on the room edges, clear of the back button
-    if (r > 0) iconButton(this, 44, 640, 'back', () => this.scene.restart({ room: r - 1 }), 72);
+    // room switch arrows: up on the wall, away from decor tap areas (see cafeLayout + layout test)
+    const { prevRoom: pr, nextRoom: nr } = CAFE_UI;
+    if (r > 0) iconButton(this, pr.x, pr.y, 'back', () => this.scene.restart({ room: r - 1 }), pr.w);
     if (r < CAFE_ROOMS - 1) {
-      const nb = iconButton(this, W - 44, 640, 'next', () => {
+      const nb = iconButton(this, nr.x, nr.y, 'next', () => {
         if (!this.roomUnlocked(r + 1)) return toast(this, t('roomLocked'));
         this.scene.restart({ room: r + 1 });
-      }, 72);
+      }, nr.w);
       if (!this.roomUnlocked(r + 1)) nb.setAlpha(0.6);
     }
 
@@ -99,7 +80,8 @@ export class CafeScene extends Phaser.Scene {
         const top = im ? im.y - im.displayHeight * im.originY : rect.y - rect.h / 2;
         const right = im ? im.x + im.displayWidth * 0.4 : rect.x + rect.w / 2 - 6;
         txt(this, right, top + 14, TAG_ICON[tagOf(i, v)], 26);
-        const hit = this.add.zone(rect.x, rect.y, rect.w, rect.h).setInteractive({ useHandCursor: true });
+        const hr = SLOT_HIT[r][key];
+        const hit = this.add.zone(hr.x, hr.y, hr.w, hr.h).setInteractive({ useHandCursor: true });
         hit.on('pointerdown', () => this.pickVariant(i));
       } else if (task?.kind === 'decor' && task.slot === i && CHAPTERS[progress(save.tasksDone).chapter]?.room === r) {
         // only the slot of the current task is shown: a pulsing "build here" spot
@@ -118,7 +100,8 @@ export class CafeScene extends Phaser.Scene {
         }
         ph.add([pg, txt(this, 0, 0, '+', 56, '#ff9e5e').setStroke(C.ink, 6)]);
         this.tweens.add({ targets: ph, scale: 1.05, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-        const hit = this.add.zone(rect.x, rect.y, rect.w, rect.h).setInteractive({ useHandCursor: true });
+        const hz = SLOT_HIT[r][key];
+        const hit = this.add.zone(hz.x, hz.y, hz.w, hz.h).setInteractive({ useHandCursor: true });
         hit.on('pointerdown', () => this.perform());
       }
     });
@@ -251,7 +234,8 @@ export class CafeScene extends Phaser.Scene {
     sittingCat(this, b, 440, 720, 120);
     const bell = txt(this, 470, 660, '🔔', 40);
     this.tweens.add({ targets: bell, angle: 15, duration: 300, yoyo: true, repeat: -1 });
-    const zone = this.add.zone(440, 710, 160, 120).setInteractive({ useHandCursor: true });
+    const vz = CAFE_UI.visitor;
+    const zone = this.add.zone(vz.x, vz.y, vz.w, vz.h).setInteractive({ useHandCursor: true });
     zone.on('pointerdown', () => {
       const name = t('breed_' + BREEDS[b].key);
       const close = modal(this, t('visitorTitle', { name }), [t('visitorText')], [
