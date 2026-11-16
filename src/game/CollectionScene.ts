@@ -5,6 +5,7 @@ import { rewardText } from '../core/retention';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { art } from './art';
+import { FRIEND_MAX, friendLevel, friendProgress } from '../core/friend';
 import { sfx } from './sfx';
 import { grant, persist, platform, save } from './state';
 import { button, C, modal, toast, txt, W, H, backButton, panel } from './ui';
@@ -42,8 +43,9 @@ export class CollectionScene extends Phaser.Scene {
       set.breeds.forEach((b, i) => this.card(b, 105 + i * 170, top + 175));
     });
 
+    txt(this, W / 2, 1180, t('friendHint'), 20, C.muted).setWordWrapWidth(W - 80, true);
     if (save.frames.length)
-      txt(this, W / 2, 1210, t('frames', { list: save.frames.map((f) => t('who_' + f)).join(', ') }), 24, '#c08a00');
+      txt(this, W / 2, 1228, t('frames', { list: save.frames.map((f) => t('who_' + f)).join(', ') }), 24, '#c08a00');
   }
 
   private card(b: number, cx: number, cy: number) {
@@ -53,7 +55,14 @@ export class CollectionScene extends Phaser.Scene {
     panel(g, cx - 78, cy - 115, 156, 222, 22, breed.rare ? 0xfff1c9 : C.panel, breed.rare ? 0xe9c56a : 0xe2c7a4);
     if (have) {
       if (!art(this, `portrait_${breed.key}`, cx, cy - 20, 130, 130)) drawCat(this.add.graphics(), [{ x: cx + 25, y: cy - 25 }, { x: cx - 25, y: cy - 25 }], b, 72, 'happy', false, save.equipped[b]);
-      txt(this, cx, cy + 65, t('breed_' + breed.key), 22).setWordWrapWidth(150, true);
+      txt(this, cx, cy + 58, t('breed_' + breed.key), 22).setWordWrapWidth(150, true);
+      // friendship level + progress bar to the next level
+      const pts = save.friend[b] ?? 0;
+      const lv = friendLevel(pts);
+      txt(this, cx - 62, cy + 88, `♥ ${lv}`, 20, '#d0475a').setOrigin(0, 0.5);
+      const bw = 70;
+      g.fillStyle(C.latte, 1).fillRoundedRect(cx - 12, cy + 82, bw, 12, 6);
+      g.fillStyle(lv >= FRIEND_MAX ? 0xe0a100 : 0xf0606e, 1).fillRoundedRect(cx - 12, cy + 82, Math.max(8, bw * friendProgress(pts)), 12, 6);
       const zone = this.add.zone(cx, cy, 156, 230).setInteractive({ useHandCursor: true });
       zone.on('pointerdown', () => this.pickAccessory(b));
     } else {

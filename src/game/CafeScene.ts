@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CAFE_ROOMS, CAFE_SLOTS, CAFE_VARIANTS } from '../core/content';
-import { CHAPTERS, doTask, nextTask, progress } from '../core/meta';
+import { chapterChest, CHAPTERS, doTask, nextTask, progress, roomChapter } from '../core/meta';
 import { comfort, tipsAvailable, tipsRate } from '../core/retention';
 import { TAG_ICON, tagOf, TROPHY_ICON, updateVisitor, VISITORS } from '../core/live';
 import { BREEDS } from '../core/content';
@@ -9,7 +9,7 @@ import { drawCat } from './drawCat';
 import { art, sittingCat } from './art';
 import { playMusic, sfx } from './sfx';
 import { rewarded, rewardedReady } from './ads';
-import { addFish, persist, platform, save, unlockBreed } from './state';
+import { addFish, grantPaws, persist, platform, save, unlockBreed } from './state';
 import { button, C, dialog, iconButton, modal, pill, toast, txt, W, backButton, panel } from './ui';
 
 import { CAFE_UI, FLOOR_SLOTS, type Rect, SLOT_HIT, SLOT_RECT } from './cafeLayout';
@@ -25,11 +25,13 @@ export class CafeScene extends Phaser.Scene {
   }
 
   init(d: { room?: number }) {
-    this.room = d.room ?? Math.min(progress(save.tasksDone).chapter, CAFE_ROOMS - 1);
+    this.room = d.room ?? CHAPTERS[Math.min(progress(save.tasksDone).chapter, CHAPTERS.length - 1)].room;
   }
 
+  /** A room opens when the story reaches its first chapter. */
   private roomUnlocked(r: number) {
-    return r === 0 || CHAPTERS[r - 1].tasks.every((k) => save.tasksDone.includes(k.id));
+    const first = CHAPTERS.findIndex((c) => c.room === r);
+    return r === 0 || (first >= 0 && progress(save.tasksDone).chapter >= first);
   }
 
   create() {
@@ -48,9 +50,9 @@ export class CafeScene extends Phaser.Scene {
     art(this, `cafe_room${r + 1}`, W / 2, 640, W, 960, true);
 
     backButton(this, () => this.scene.start('Menu'));
-    txt(this, W / 2, 70, t('chapter_' + CHAPTERS[r].key), 34);
+    txt(this, W / 2, 70, t('chapter_' + CHAPTERS[roomChapter(save.tasksDone, r)].key), 34);
     pill(this, W - 24, 64, 'star', () => save.stars, 130);
-    txt(this, W / 2, 128, t('comfort', { n: comfort(save.cafe), r: tipsRate(save.cafe) }), 24);
+    txt(this, W / 2, 128, t('comfort', { n: comfort(save.cafe, save.cafeTier), r: tipsRate(save.cafe, save.cafeTier) }), 24);
     // room switch arrows: up on the wall, away from decor tap areas (see cafeLayout + layout test)
     const { prevRoom: pr, nextRoom: nr } = CAFE_UI;
     if (r > 0) iconButton(this, pr.x, pr.y, 'back', () => this.scene.restart({ room: r - 1 }), pr.w);
@@ -83,6 +85,10 @@ export class CafeScene extends Phaser.Scene {
         const hr = SLOT_HIT[r][key];
         const hit = this.add.zone(hr.x, hr.y, hr.w, hr.h).setInteractive({ useHandCursor: true });
         hit.on('pointerdown', () => this.pickVariant(i));
+        // renovation task on a placed piece: it gently pulses until upgraded
+        if (im && task?.kind === 'decor' && task.slot === i && CHAPTERS[progress(save.tasksDone).chapter]?.room === r) {
+          this.tweens.add({ targets: im, scale: im.scale * 1.06, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+        }
       } else if (task?.kind === 'decor' && task.slot === i && CHAPTERS[progress(save.tasksDone).chapter]?.room === r) {
         // only the slot of the current task is shown: a pulsing "build here" spot
         const ph = this.add.container(rect.x, rect.y);
@@ -113,9 +119,9 @@ export class CafeScene extends Phaser.Scene {
     this.spawnCats();
     this.drawVisitor();
     this.drawTaskPanel();
-    const tips = tipsAvailable(save.cafe, save.tips.since, Date.now());
+    const tips = tipsAvailable(save.cafe, save.tips.since, Date.now(), save.cafeTier);
     button(this, 130, 1065, 210, 70, t('tipsLabel', { n: tips }), () => {
-      const n = tipsAvailable(save.cafe, save.tips.since, Date.now());
+      const n = tipsAvailable(save.cafe, save.tips.since, Date.now(), save.cafeTier);
       if (n <= 0) return toast(this, t('tipsEmpty'), 1000);
       const collect = (got: number) => {
         save.tips.since = Date.now();
@@ -162,7 +168,7 @@ export class CafeScene extends Phaser.Scene {
     const task = ch.tasks[p.task];
     txt(this, W / 2, 1152, t('chapterProgress', { name: t('chapter_' + ch.key), a: p.task, b: ch.tasks.length }), 22, C.muted);
     const name = task.kind === 'decor'
-      ? t('task_decor', { name: t('slot_' + CAFE_SLOTS[task.slot!]) })
+      ? t(['task_decor', 'task_decor1', 'task_decor2'][ch.stage], { name: t('slot_' + CAFE_SLOTS[task.slot!]) })
       : t('task_' + task.id);
     txt(this, 220, 1210, name, 28).setWordWrapWidth(360, true);
     button(this, W - 150, 1205, 240, 80, t('doTask', { n: task.cost }), () => this.perform(), {
@@ -176,7 +182,11 @@ export class CafeScene extends Phaser.Scene {
     if (save.stars < task.cost) return toast(this, t('noStars'), 1060);
     const res = doTask(save)!;
     const ch = CHAPTERS[res.chapter];
-    if (task.kind === 'decor') save.cafe[ch.room][task.slot!] = 0;
+    if (task.kind === 'decor') {
+      // each stage unlocks the next look of the piece and puts it in place (the player can switch back)
+      save.cafeTier[ch.room][task.slot!] = Math.max(save.cafeTier[ch.room][task.slot!], ch.stage);
+      save.cafe[ch.room][task.slot!] = ch.stage;
+    }
     persist();
     sfx.task();
     platform.track('cafe_task', { id: task.id });
@@ -185,6 +195,10 @@ export class CafeScene extends Phaser.Scene {
     const finish = () => {
       if (!res.chapterDone) return this.scene.restart({ room: ch.room });
       const lines = [t('chapterDone')];
+      const chest = chapterChest(res.chapter);
+      save.fish += chest.fish;
+      const pawLines = grantPaws(chest.paws);
+      lines.push(t('chestText', { f: chest.fish, p: chest.paws }), ...pawLines);
       if (save.flawless[ch.key] !== false && !save.frames.includes(ch.resident)) {
         save.frames.push(ch.resident);
         lines.push(t('goldenFrame', { name: t('who_' + ch.resident) }));
@@ -195,7 +209,7 @@ export class CafeScene extends Phaser.Scene {
         label: 'OK', color: C.green,
         onClick: () => {
           close();
-          this.scene.restart({ room: Math.min(res.chapter + 1, CAFE_ROOMS - 1) });
+          this.scene.restart({ room: CHAPTERS[res.chapter + 1]?.room ?? ch.room });
         },
       }]);
     };
@@ -205,7 +219,7 @@ export class CafeScene extends Phaser.Scene {
         who, name: t('who_' + who), text: t(`story_${ch.key}_${res.scene}_${i}`),
       }));
       sfx.scene();
-      dialog(this, lines, t('tapToContinue'), finish, `chapter${res.chapter + 1}_cover`);
+      dialog(this, lines, t('tapToContinue'), finish, `chapter${ch.room + 1}_cover`);
     });
   }
 
@@ -213,9 +227,14 @@ export class CafeScene extends Phaser.Scene {
     const r = this.room;
     const close = modal(this, t('slot_' + CAFE_SLOTS[slot]), [t('chooseVariant'), t('visitorHint')],
       CAFE_VARIANTS[r].map((color, v) => ({
-        label: `${save.cafe[r][slot] === v ? '✓ ' : ''}${TAG_ICON[tagOf(slot, v)]} ${t('tag_' + tagOf(slot, v))}`,
+        // later looks open with the cozy / deluxe renovation chapters
+        label: v > save.cafeTier[r][slot]
+          ? `🔒 ${t(v === 1 ? 'variantCozy' : 'variantDeluxe')}`
+          : `${save.cafe[r][slot] === v ? '✓ ' : ''}${TAG_ICON[tagOf(slot, v)]} ${t('tag_' + tagOf(slot, v))}`,
         color,
+        disabled: v > save.cafeTier[r][slot],
         onClick: () => {
+          if (v > save.cafeTier[r][slot]) return toast(this, t('variantLocked'));
           save.cafe[r][slot] = v;
           persist();
           close();

@@ -35,6 +35,12 @@ export interface SaveData {
   breeds: number[];
   /** cafe[room][slot] = chosen variant, -1 not bought */
   cafe: number[][];
+  /** cafeTier[room][slot] = highest variant unlocked by renovation chapters, -1 none */
+  cafeTier: number[][];
+  /** consecutive won levels (short loop) */
+  winStreak: number;
+  /** breed -> rescued cats of that breed (friendship, long loop) */
+  friend: Record<number, number>;
   daily: { last: string; streak: number; results: Record<string, DailyResult> };
   login: { last: string; streak: number };
   muted: boolean;
@@ -69,6 +75,9 @@ export function defaultSave(): SaveData {
     introSeen: false,
     breeds: [],
     cafe: Array.from({ length: CAFE_ROOMS }, () => CAFE_SLOTS.map(() => -1)),
+    cafeTier: Array.from({ length: CAFE_ROOMS }, () => CAFE_SLOTS.map(() => -1)),
+    winStreak: 0,
+    friend: {},
     daily: { last: '', streak: 0, results: {} },
     login: { last: '', streak: 0 },
     muted: false,
@@ -98,6 +107,9 @@ export function migrate(raw: unknown): SaveData {
     daily: { ...base.daily, ...(s.daily ?? {}) },
     login: { ...base.login, ...(s.login ?? {}) },
     cafe,
+    // before renovation stages every variant was free to pick: keep what the player already chose
+    cafeTier: base.cafeTier.map((room, r) => room.map((v, i) => s.cafeTier?.[r]?.[i] ?? (cafe[r][i] >= 0 ? 2 : v))),
+    friend: { ...(s.friend ?? {}) },
   };
 }
 

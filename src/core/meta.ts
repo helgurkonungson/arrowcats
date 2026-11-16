@@ -11,8 +11,10 @@ export interface Task {
 }
 
 export interface Chapter {
-  key: 'hall' | 'attic';
+  key: string;
   room: number;
+  /** renovation stage of the room: 0 furnish, 1 cozy, 2 deluxe (= décor variant it unlocks) */
+  stage: number;
   resident: Speaker;
   tasks: Task[];
   /** a scene plays after completing task with this index */
@@ -21,28 +23,45 @@ export interface Chapter {
   scenes: Speaker[][];
 }
 
-// slot indices follow CAFE_SLOTS: window, lamp, post, sofa, counter
-const tasks = (key: string): Task[] => [
-  { id: `${key}_s1`, kind: 'story', cost: 1 },
-  { id: `${key}_d0`, kind: 'decor', cost: 2, slot: 0 },
-  { id: `${key}_d1`, kind: 'decor', cost: 2, slot: 1 },
-  { id: `${key}_s2`, kind: 'story', cost: 1 },
-  { id: `${key}_d2`, kind: 'decor', cost: 2, slot: 2 },
-  { id: `${key}_d3`, kind: 'decor', cost: 2, slot: 3 },
-  { id: `${key}_s3`, kind: 'story', cost: 1 },
-  { id: `${key}_d4`, kind: 'decor', cost: 2, slot: 4 },
+// slot indices follow CAFE_SLOTS: window, lamp, post, sofa, counter.
+// Costs grow with the renovation stage (13 / 21 / 29 ⭐ per chapter), like area tasks in Royal Match.
+const tasks = (key: string, stage = 0): Task[] => {
+  const s = 1 + stage; // story task
+  const d = 2 + stage; // décor task
+  return [
+    { id: `${key}_s1`, kind: 'story', cost: s },
+    { id: `${key}_d0`, kind: 'decor', cost: d, slot: 0 },
+    { id: `${key}_d1`, kind: 'decor', cost: d, slot: 1 },
+    { id: `${key}_s2`, kind: 'story', cost: s },
+    { id: `${key}_d2`, kind: 'decor', cost: d, slot: 2 },
+    { id: `${key}_d3`, kind: 'decor', cost: d, slot: 3 },
+    { id: `${key}_s3`, kind: 'story', cost: s },
+    { id: `${key}_d4`, kind: 'decor', cost: d, slot: 4 },
+  ];
+};
+
+const chapter = (key: string, room: number, stage: number, resident: Speaker, scenes: Speaker[][]): Chapter =>
+  ({ key, room, stage, resident, tasks: tasks(key, stage), sceneAfter: [2, 5, 7], scenes });
+
+/** Hall and attic are renovated three times: furnish → cozy → deluxe (the 3 art variants of each piece). */
+export const CHAPTERS: Chapter[] = [
+  chapter('hall', 0, 0, 'bun', [['murr', 'bun', 'murr'], ['bun', 'murr', 'bun'], ['murr', 'bun', 'murr']]),
+  chapter('attic', 1, 0, 'luna', [['luna', 'murr', 'luna'], ['luna', 'murr'], ['luna', 'murr']]),
+  chapter('hall2', 0, 1, 'bun', [['murr', 'bun'], ['bun', 'murr'], ['murr', 'bun']]),
+  chapter('attic2', 1, 1, 'luna', [['luna', 'murr'], ['luna', 'murr'], ['luna', 'murr']]),
+  chapter('hall3', 0, 2, 'bun', [['murr', 'bun'], ['bun', 'murr'], ['murr', 'bun']]),
+  chapter('attic3', 1, 2, 'luna', [['luna', 'murr'], ['luna', 'murr'], ['luna', 'murr']]),
 ];
 
-export const CHAPTERS: Chapter[] = [
-  {
-    key: 'hall', room: 0, resident: 'bun', tasks: tasks('hall'), sceneAfter: [2, 5, 7],
-    scenes: [['murr', 'bun', 'murr'], ['bun', 'murr', 'bun'], ['murr', 'bun', 'murr']],
-  },
-  {
-    key: 'attic', room: 1, resident: 'luna', tasks: tasks('attic'), sceneAfter: [2, 5, 7],
-    scenes: [['luna', 'murr', 'luna'], ['luna', 'murr'], ['luna', 'murr']],
-  },
-];
+/** Chest for a finished chapter: grows with the chapter number. */
+export const chapterChest = (c: number) => ({ fish: 100 + 50 * c, paws: 2 + c });
+
+/** Latest chapter played in this room (for the café title), never past the current one. */
+export function roomChapter(done: readonly string[], room: number): number {
+  const cur = Math.min(progress(done).chapter, CHAPTERS.length - 1);
+  for (let c = cur; c >= 0; c--) if (CHAPTERS[c].room === room) return c;
+  return CHAPTERS.findIndex((ch) => ch.room === room);
+}
 
 /** Story intro shown once before the first task of the game. */
 export const INTRO: Speaker[] = ['murr', 'murr'];

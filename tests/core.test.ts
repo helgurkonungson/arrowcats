@@ -70,9 +70,9 @@ describe('save', () => {
 import { CHAPTERS, chapterCost, doTask, nextTask, progress, starsToScene } from '../src/core/meta';
 
 describe('meta', () => {
-  it('chapters cost 13 stars with scenes after tasks 3, 6 and 8', () => {
+  it('chapters cost 13 / 21 / 29 stars by stage with scenes after tasks 3, 6 and 8', () => {
     for (const c of CHAPTERS) {
-      expect(chapterCost(c)).toBe(13);
+      expect(chapterCost(c)).toBe([13, 21, 29][c.stage]);
       expect(c.sceneAfter).toEqual([2, 5, 7]);
       expect(c.scenes.length).toBe(3);
     }
@@ -82,12 +82,12 @@ describe('meta', () => {
     const st = { stars: 0, tasksDone: [] as string[] };
     expect(starsToScene(st.tasksDone, 0)).toBe(5); // 1 + 2 + 2
     expect(doTask(st)).toBeNull();
-    st.stars = 100;
+    st.stars = 500;
     const scenes: string[] = [];
     let r;
     while ((r = doTask(st))) if (r.scene >= 0) scenes.push(`${r.chapter}:${r.scene}${r.chapterDone ? '!' : ''}`);
-    expect(scenes).toEqual(['0:0', '0:1', '0:2!', '1:0', '1:1', '1:2!']);
-    expect(st.stars).toBe(100 - 26);
+    expect(scenes).toEqual(CHAPTERS.flatMap((_, c) => [`${c}:0`, `${c}:1`, `${c}:2!`]));
+    expect(st.stars).toBe(500 - CHAPTERS.reduce((n, c) => n + chapterCost(c), 0));
     expect(nextTask(st.tasksDone)).toBeNull();
     expect(progress(st.tasksDone).chapter).toBe(CHAPTERS.length);
   });
@@ -226,5 +226,40 @@ describe('ads', () => {
     s.lastContinue = 0;
     expect(canOfferContinue(s, 60_000)).toBe(false);
     expect(canOfferContinue(s, AD_RULES.continueGapMs)).toBe(true);
+  });
+});
+
+import { chapterChest, CHAPTERS as CH, roomChapter } from '../src/core/meta';
+import { addFriendship, FRIEND_MAX, FRIEND_STEPS, friendLevel, friendProgress } from '../src/core/friend';
+import { newTier, streakBonus } from '../src/core/streak';
+describe('loops', () => {
+  it('renovation chapters: rooms alternate, stages 0..2, costs grow, enough for ~100+ levels', () => {
+    expect(CH.map((c) => c.stage)).toEqual([0, 0, 1, 1, 2, 2]);
+    expect(CH.map((c) => c.room)).toEqual([0, 1, 0, 1, 0, 1]);
+    const costs = CH.map(chapterCost);
+    for (let i = 2; i < costs.length; i++) expect(costs[i]).toBeGreaterThan(costs[i - 2]);
+    expect(costs.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(120);
+    expect(new Set(CH.flatMap((c) => c.tasks.map((t) => t.id))).size).toBe(CH.length * 8);
+    expect(chapterChest(5).fish).toBeGreaterThan(chapterChest(0).fish);
+    expect(roomChapter([], 0)).toBe(0);
+    expect(roomChapter([], 1)).toBe(1);
+  });
+  it('friendship levels and rewards', () => {
+    expect(friendLevel(0)).toBe(0);
+    expect(friendLevel(FRIEND_STEPS[0])).toBe(1);
+    expect(friendLevel(10_000)).toBe(FRIEND_MAX);
+    expect(friendProgress(10_000)).toBe(1);
+    const f: Record<number, number> = {};
+    const ups = addFriendship(f, [0, 0, 0, 0, 0, 1]);
+    expect(f[0]).toBe(5);
+    expect(ups).toEqual([[0, 1]]);
+  });
+  it('win streak bonuses', () => {
+    expect(streakBonus(2)).toEqual({ freeHint: false, extraHeart: false, fishBonus: 0 });
+    expect(streakBonus(3).freeHint).toBe(true);
+    expect(streakBonus(5).extraHeart).toBe(true);
+    expect(streakBonus(7).fishBonus).toBe(1);
+    expect(newTier(5)).toBe(5);
+    expect(newTier(6)).toBe(0);
   });
 });

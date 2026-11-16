@@ -8,6 +8,8 @@ import { prevDate } from '../core/save';
 import { Cat, Cell, DX, DY, Level } from '../core/types';
 import { headDir } from '../core/board';
 import { CHAPTERS, nextTask, progress, starsToScene } from '../core/meta';
+import { newTier, streakBonus } from '../core/streak';
+import { addFriendship, friendReward } from '../core/friend';
 import { t } from '../i18n';
 import { drawCat, Mood } from './drawCat';
 import { art, has, headKey } from './art';
@@ -41,6 +43,10 @@ export class LevelScene extends Phaser.Scene {
   private board!: Board;
   private views = new Map<number, CatView>();
   private hearts = 3;
+  /** 3, or 4 with the win-streak bonus */
+  private maxHearts = 3;
+  private freeHint = false;
+  private fishBonus = 0;
   private cs = 64;
   private ox = 0;
   private oy = 0;
@@ -67,7 +73,12 @@ export class LevelScene extends Phaser.Scene {
   init(d: LevelData) {
     this.d = d;
     this.views = new Map();
-    this.hearts = 3;
+    // win streak bonuses (regular levels only)
+    const sb = d.mode === 'level' ? streakBonus(save.winStreak) : { freeHint: false, extraHeart: false, fishBonus: 0 };
+    this.maxHearts = sb.extraHeart ? 4 : 3;
+    this.hearts = this.maxHearts;
+    this.freeHint = sb.freeHint;
+    this.fishBonus = sb.fishBonus;
     this.feedArmed = false;
     this.combo = 0;
     this.lastExit = -1e9;
@@ -224,10 +235,19 @@ export class LevelScene extends Phaser.Scene {
       ? t('dailyTitle', { n: dailyNumber(d.date) })
       : t(this.level.hard ? 'hardLevel' : 'level', { n: d.n });
     const tt = txt(this, W / 2, 52, title, 38);
-    if (tt.width > 330) tt.setScale(330 / tt.width); // keep clear of the back button and fish counter
+    if (tt.width > 290) tt.setScale(290 / tt.width); // keep clear of the back button and fish counter
     if (this.level.hard) tt.setColor('#c9482a');
-    this.heartIcons = [0, 1, 2].map((i) => icon(this, 'heart', W / 2 + (i - 1) * 56, 112, 52));
+    const mh = this.maxHearts;
+    this.heartIcons = Array.from({ length: mh }, (_, i) => icon(this, 'heart', W / 2 + (i - (mh - 1) / 2) * 56, 112, 52));
     this.updateHearts();
+    if (d.mode === 'level' && save.winStreak >= 2) {
+      icon(this, 'flame', W / 2 - 40, 158, 34);
+      txt(this, W / 2 - 18, 159, t('winStreakHud', { n: save.winStreak }), 24, '#c9482a').setOrigin(0, 0.5);
+    }
+    if (d.mode === 'level' && (this.freeHint || mh > 3)) {
+      const parts = [this.freeHint ? t('streakFreeHint') : '', mh > 3 ? t('streakHeart') : ''].filter(Boolean).join(' · ');
+      this.time.delayedCall(400, () => toast(this, t('streakBonusStart', { n: save.winStreak, r: parts }), H - 240));
+    }
     this.fish = fishLabel(this, W - 24, 64, () => save.fish + this.earned);
     if (d.mode === 'daily') {
       icon(this, 'clock', W - 150, 132, 34);
@@ -272,7 +292,7 @@ export class LevelScene extends Phaser.Scene {
 
   private refreshUi() {
     this.fish.refresh();
-    this.hintBtn.setAlpha(this.wallet() >= COST.hint ? 1 : 0.5);
+    this.hintBtn.setAlpha(this.freeHint || this.wallet() >= COST.hint ? 1 : 0.5);
     this.feedBtn.setAlpha(this.feedArmed ? 0.7 : this.wallet() >= COST.feed ? 1 : 0.5);
     this.feedBtn.setScale(this.feedArmed ? 1.06 : 1);
   }
@@ -417,6 +437,10 @@ export class LevelScene extends Phaser.Scene {
     v.acc?.destroy();
     this.views.delete(v.cat.id);
     this.rescued.push(v.cat.breed);
+    if (this.fishBonus) {
+      this.earned += this.fishBonus;
+      this.refreshUi();
+    }
     if (this.views.size === 0 && !this.ended) this.win();
     else if (this.d.mode === 'level' && this.d.n <= TUTORIAL_COUNT) this.tutorialHint();
   }
@@ -465,7 +489,10 @@ export class LevelScene extends Phaser.Scene {
     if (this.ended) return;
     const free = this.board.freeCats().map((id) => this.views.get(id)!).filter((v) => v && !v.busy && !v.hint);
     if (!free.length) return;
-    if (!this.spend(COST.hint)) return toast(this, t('noFish'));
+    if (this.freeHint) {
+      this.freeHint = false;
+      this.refreshUi();
+    } else if (!this.spend(COST.hint)) return toast(this, t('noFish'));
     const v = free.find((x) => x.awake) ?? free[0];
     v.hint = true;
     this.redraw(v);
@@ -507,7 +534,8 @@ export class LevelScene extends Phaser.Scene {
         stars = this.level.hard ? 2 : 1;
         paws = this.level.hard ? PAWS.hard : PAWS.level;
       }
-      save.best[d.n] = Math.max(save.best[d.n] ?? 0, this.hearts);
+      save.best[d.n] = Math.max(save.best[d.n] ?? 0, Math.min(3, this.hearts));
+      save.winStreak++;
       platform.track('level_complete', { id: this.level.id, hearts: this.hearts });
     } else {
       const time = (this.time.now - this.startTime) / 1000;
@@ -538,6 +566,17 @@ export class LevelScene extends Phaser.Scene {
     for (const b of new Set(this.rescued)) {
       if (unlockBreed(b)) lines.push(t('newBreed', { name: t('breed_' + BREEDS[b].key) }));
     }
+    // friendship: every rescued cat befriends its breed (long goal, see core/friend.ts)
+    for (const [b, lv] of addFriendship(save.friend, this.rescued)) {
+      const r = friendReward(lv);
+      save.fish += r.fish;
+      save.stars += r.stars;
+      lines.push(t('friendUp', { name: t('breed_' + BREEDS[b].key), n: lv, r: r.fish + ' 🐟' + (r.stars ? ` +${r.stars} ⭐` : '') }));
+    }
+    if (d.mode === 'level') {
+      const tier = newTier(save.winStreak);
+      lines.push(t(tier ? 'winStreakNew' : 'winStreakLine', { n: save.winStreak }));
+    }
     save.stars += stars;
     if (paws) {
       const msgs = grantPaws(paws);
@@ -549,7 +588,8 @@ export class LevelScene extends Phaser.Scene {
     const need = starsToScene(save.tasksDone, save.stars);
     if (goal) lines.push(need === 0 ? t('sceneReady') : t('toScene', { n: need }));
     lines.unshift(t('winFish', { n: total }) + (stars ? '   ' + t('winStars', { n: stars }) : ''));
-    if (d.mode === 'level') lines.splice(1, 0, t('rating', { h: '♥'.repeat(this.hearts) + '♡'.repeat(3 - this.hearts) }));
+    const rh = Math.min(3, this.hearts);
+    if (d.mode === 'level') lines.splice(1, 0, t('rating', { h: '♥'.repeat(rh) + '♡'.repeat(3 - rh) }));
     const cafeBtn = goal && save.stars >= goal.cost
       ? [{ label: t('toCafe'), color: C.pink, onClick: () => this.scene.start('Cafe') }]
       : [];
@@ -603,7 +643,7 @@ export class LevelScene extends Phaser.Scene {
 
   /** A lost heart in the current chapter breaks its golden-frame run. */
   private markFlawless() {
-    if (this.d.mode !== 'level' || this.hearts >= 3) return;
+    if (this.d.mode !== 'level' || this.hearts >= this.maxHearts) return;
     const ch = CHAPTERS[progress(save.tasksDone).chapter];
     if (ch) save.flawless[ch.key] = false;
   }
@@ -635,8 +675,8 @@ export class LevelScene extends Phaser.Scene {
           },
         }]
         : []),
-      { label: t('retry'), color: C.green, onClick: () => this.scene.restart(this.d) },
-      { label: t('menu'), color: C.gray, onClick: () => this.scene.start('Menu') },
+      { label: t('retry'), color: C.green, onClick: () => { this.breakStreak(); this.scene.restart(this.d); } },
+      { label: t('menu'), color: C.gray, onClick: () => { this.breakStreak(); this.scene.start('Menu'); } },
     ]);
     const revive = () => {
       this.hearts = 1;
@@ -656,7 +696,15 @@ export class LevelScene extends Phaser.Scene {
     void this.sendShare();
   }
 
+  /** A lost (or abandoned) regular level ends the win streak. */
+  private breakStreak() {
+    if (this.d.mode !== 'level' || !save.winStreak) return;
+    save.winStreak = 0;
+    persist();
+  }
+
   private leave() {
+    if (!this.ended && this.taps.length) this.breakStreak();
     platform.gameplayStop();
     this.scene.start('Menu');
   }

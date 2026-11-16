@@ -32,23 +32,30 @@ export function claimCalendar(c: CalendarState, today: string): { index: number;
 export const TIPS_HOURS = 8;
 export const TIPS_PER_COMFORT_HOUR = 2;
 
-/** Comfort = placed décor items; at least 1 so the jar works from day one. */
-export function comfort(cafe: number[][]): number {
-  return Math.max(1, cafe.flat().filter((v) => v >= 0).length);
+/**
+ * Comfort = placed décor items, each renovation stage adds one more (furnish 1, cozy 2, deluxe 3);
+ * at least 1 so the jar works from day one. `tier` = cafeTier; without it every item counts once.
+ */
+export function comfort(cafe: number[][], tier?: number[][]): number {
+  let n = 0;
+  cafe.forEach((room, r) => room.forEach((v, i) => {
+    if (v >= 0) n += 1 + Math.max(0, tier?.[r]?.[i] ?? 0);
+  }));
+  return Math.max(1, n);
 }
 
-export function tipsRate(cafe: number[][]) {
-  return comfort(cafe) * TIPS_PER_COMFORT_HOUR;
+export function tipsRate(cafe: number[][], tier?: number[][]) {
+  return comfort(cafe, tier) * TIPS_PER_COMFORT_HOUR;
 }
 
-export function tipsCap(cafe: number[][]) {
-  return tipsRate(cafe) * TIPS_HOURS;
+export function tipsCap(cafe: number[][], tier?: number[][]) {
+  return tipsRate(cafe, tier) * TIPS_HOURS;
 }
 
-export function tipsAvailable(cafe: number[][], since: number, now: number): number {
+export function tipsAvailable(cafe: number[][], since: number, now: number, tier?: number[][]): number {
   if (!since || now <= since) return 0;
   const hours = (now - since) / 3600000;
-  return Math.min(tipsCap(cafe), Math.floor(hours * tipsRate(cafe)));
+  return Math.min(tipsCap(cafe, tier), Math.floor(hours * tipsRate(cafe, tier)));
 }
 
 /** Streak is alive if the daily was solved today or yesterday; `atRisk` = not yet today. */

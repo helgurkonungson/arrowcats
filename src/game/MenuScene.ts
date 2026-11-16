@@ -66,10 +66,10 @@ export class MenuScene extends Phaser.Scene {
     button(this, W / 2, 815, 560, 96, t(dailyDone ? 'dailyDone' : 'daily'), () =>
       this.scene.start('Level', { mode: 'daily', date: today }), { color: C.panel, size: 34, icon: 'daily' });
 
-    const tips = tipsAvailable(save.cafe, save.tips.since, Date.now());
+    const tips = tipsAvailable(save.cafe, save.tips.since, Date.now(), save.cafeTier);
     if (updateVisitor(save.visit, save.cafe, save.breeds, Date.now(), Math.random())) this.time.delayedCall(400, () => toast(this, t('visitorArrived'), 470));
     persist();
-    const ready = (!!task && save.stars >= task.cost) || tips >= tipsCap(save.cafe) / 2 || save.visit.visitor >= 0;
+    const ready = (!!task && save.stars >= task.cost) || tips >= tipsCap(save.cafe, save.cafeTier) / 2 || save.visit.visitor >= 0;
     // secondary destinations as a row of tiles
     const ev = eventAt(today);
     const tw = 176;
