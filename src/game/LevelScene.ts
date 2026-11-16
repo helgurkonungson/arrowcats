@@ -10,7 +10,7 @@ import { headDir } from '../core/board';
 import { CHAPTERS, nextTask, progress, starsToScene } from '../core/meta';
 import { t } from '../i18n';
 import { drawCat, Mood } from './drawCat';
-import { art, has, HEAD_MOOD } from './art';
+import { art, has, headKey } from './art';
 import { playMusic, sfx } from './sfx';
 import { betweenLevels, continueOffered, markContinue, rewarded, rewardedReady } from './ads';
 import { addFish, grantPaws, persist, platform, save, unlockBreed } from './state';
@@ -175,7 +175,7 @@ export class LevelScene extends Phaser.Scene {
 
   private redraw(v: CatView, pts?: { x: number; y: number }[]) {
     const p = pts ?? v.cat.cells.map((c) => this.px(c));
-    const key = `head_${BREEDS[v.cat.breed].key}_${HEAD_MOOD[v.mood]}`;
+    const key = headKey(this, BREEDS[v.cat.breed].key, v.mood);
     const accId = save.equipped[v.cat.breed];
     const useArt = has(this, key);
     drawCat(v.g, p, v.cat.breed, this.cs, v.mood, v.hint, useArt ? undefined : accId, useArt);

@@ -379,5 +379,23 @@
    "kittens/kitten_ragdoll_happy",
    "kittens/kitten_ragdoll_offended"
   ]
+ },
+ "S23": {
+  "rows": 3,
+  "cols": 4,
+  "names": [
+   "heads/head_ginger_sleep",
+   "heads/head_gray_sleep",
+   "heads/head_black_sleep",
+   "heads/head_white_sleep",
+   "heads/head_calico_sleep",
+   "heads/head_siamese_sleep",
+   "heads/head_british_sleep",
+   "heads/head_tabby_sleep",
+   "heads/head_mainecoon_sleep",
+   "heads/head_sphynx_sleep",
+   "heads/head_bengal_sleep",
+   "heads/head_golden_sleep"
+  ]
  }
 }

@@ -36,7 +36,13 @@ export function art(s: Phaser.Scene, key: string, x: number, y: number, w: numbe
   return im.setScale(k);
 }
 
-export const HEAD_MOOD: Record<string, string> = { calm: 'calm', happy: 'happy', angry: 'offended', sleep: 'calm' };
+export const HEAD_MOOD: Record<string, string> = { calm: 'calm', happy: 'happy', angry: 'offended', sleep: 'sleep' };
+
+/** Texture key of a generated head; a sleeping head falls back to the calm one until S23 exists. */
+export function headKey(s: Phaser.Scene, breedKey: string, mood: string) {
+  const k = `head_${breedKey}_${HEAD_MOOD[mood] ?? 'calm'}`;
+  return mood === 'sleep' && !has(s, k) ? `head_${breedKey}_calm` : k;
+}
 export const SPEAKER_ART: Record<string, string> = {
   murr: 'mentor_murr_calm', bun: 'resident_bun_calm', luna: 'resident_luna_calm',
 };
@@ -48,7 +54,7 @@ export const SPEAKER_ART: Record<string, string> = {
 export function artCat(s: Phaser.Scene, pts: { x: number; y: number }[], breed: number, size: number, mood: Mood) {
   const c = s.add.container(0, 0);
   const g = s.add.graphics();
-  const key = `head_${BREEDS[breed].key}_${HEAD_MOOD[mood]}`;
+  const key = headKey(s, BREEDS[breed].key, mood);
   const useArt = has(s, key);
   drawCat(g, pts, breed, size, mood, false, undefined, useArt);
   c.add(g);

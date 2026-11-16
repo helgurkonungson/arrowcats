@@ -21,6 +21,8 @@ export function metrics(level: Level) {
     solvable: s.solvable,
     depth: s.waves.length,
     narrow: s.waves.length ? Math.min(...s.waves.map((w) => w.length)) : 0,
+    /** cats free at the start: the fewer, the harder to spot a move */
+    first: s.waves[0]?.length ?? 0,
     cats: level.cats.length,
     fill: (cells + level.boxes.length) / (level.w * level.h),
   };

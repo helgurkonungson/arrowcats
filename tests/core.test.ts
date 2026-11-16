@@ -47,7 +47,7 @@ describe('levels', () => {
     }
     const p = levelParams(50);
     expect(generateOnce(123, p, 'a')).toEqual(generateOnce(123, p, 'a'));
-  });
+  }, 60_000);
 
   it('daily levels are solvable', () => {
     for (let d = 0; d < 60; d++) {

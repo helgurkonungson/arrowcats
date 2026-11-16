@@ -16,21 +16,24 @@ type Rect = { x: number; y: number; w: number; h: number };
 type Slot = (typeof CAFE_SLOTS)[number];
 /** Each room has its own furniture layout (and its own decor art, see Art/PROMPTS.md 1.7–1.8). */
 const SLOT_RECT: Record<Slot, Rect>[] = [
+  // floor starts at y≈870 in the hall art, ≈810 in the attic; floor pieces stand on it (see FLOOR_SLOTS)
   { // hall: classic front room
-    window: { x: 360, y: 360, w: 240, h: 170 },
-    lamp: { x: 110, y: 560, w: 80, h: 220 },
-    post: { x: 580, y: 720, w: 80, h: 240 },
-    sofa: { x: 260, y: 840, w: 300, h: 120 },
-    counter: { x: 500, y: 1000, w: 300, h: 100 },
+    window: { x: 360, y: 440, w: 280, h: 230 },
+    lamp: { x: 95, y: 745, w: 140, h: 390 },
+    post: { x: 630, y: 790, w: 140, h: 300 },
+    sofa: { x: 245, y: 870, w: 360, h: 200 },
+    counter: { x: 480, y: 935, w: 300, h: 180 },
   },
   { // attic: dormer on the right, pendant lantern under the beam, wall shelves, armchair, bar
-    window: { x: 500, y: 400, w: 200, h: 210 },
-    lamp: { x: 230, y: 330, w: 90, h: 200 },
-    post: { x: 150, y: 560, w: 150, h: 170 },
-    sofa: { x: 520, y: 830, w: 230, h: 150 },
-    counter: { x: 330, y: 955, w: 320, h: 110 },
+    window: { x: 500, y: 430, w: 220, h: 230 },
+    lamp: { x: 230, y: 360, w: 100, h: 230 },
+    post: { x: 150, y: 580, w: 170, h: 190 },
+    sofa: { x: 530, y: 860, w: 280, h: 210 },
+    counter: { x: 290, y: 930, w: 340, h: 180 },
   },
 ];
+/** Pieces that stand on the floor: their art is bottom-aligned to the slot so they never float. */
+const FLOOR_SLOTS: Slot[][] = [['lamp', 'post', 'sofa', 'counter'], ['sofa', 'counter']];
 const WALL = [0xf6dfc6, 0xe9e0ef]; // hall: peach, attic: dusty lavender (art bible color script)
 const FLOOR = [0xe3c49f, 0xd8b98e]; // hall: honey wood, attic: pine
 
@@ -83,10 +86,19 @@ export class CafeScene extends Phaser.Scene {
       const rect = SLOT_RECT[r][key];
       const v = save.cafe[r][i];
       if (v >= 0) {
-        if (!art(this, `decor_r${r + 1}_${key}_${v}`, rect.x, rect.y, rect.w * 1.2, rect.h * 1.2)) {
+        const im = art(this, `decor_r${r + 1}_${key}_${v}`, rect.x, rect.y, rect.w * 1.15, rect.h * 1.15);
+        if (im && FLOOR_SLOTS[r].includes(key)) {
+          im.setOrigin(0.5, 1).setY(rect.y + rect.h / 2);
+          this.add.ellipse(rect.x, rect.y + rect.h / 2 - 4, im.displayWidth * 0.8, 18, C.inkN, 0.12);
+          this.children.bringToTop(im);
+        }
+        if (!im) {
           this.drawItem(this.add.graphics(), key, rect, CAFE_VARIANTS[r][v], r);
         }
-        txt(this, rect.x + rect.w / 2 - 6, rect.y - rect.h / 2 + 6, TAG_ICON[tagOf(i, v)], 26);
+        // tag badge sits on the item's top-right corner, not on the empty slot box
+        const top = im ? im.y - im.displayHeight * im.originY : rect.y - rect.h / 2;
+        const right = im ? im.x + im.displayWidth * 0.4 : rect.x + rect.w / 2 - 6;
+        txt(this, right, top + 14, TAG_ICON[tagOf(i, v)], 26);
         const hit = this.add.zone(rect.x, rect.y, rect.w, rect.h).setInteractive({ useHandCursor: true });
         hit.on('pointerdown', () => this.pickVariant(i));
       } else if (task?.kind === 'decor' && task.slot === i && CHAPTERS[progress(save.tasksDone).chapter]?.room === r) {
@@ -267,17 +279,13 @@ export class CafeScene extends Phaser.Scene {
     const breeds = save.breeds.slice(0, 10);
     // resident cats sit on the floor (back row first so nearer cats overlap them)
     breeds
-      .map((b, i) => ({ b, i, x: 110 + ((i * 137) % 500), y: 850 + ((i * 89) % 140) }))
+      .map((b, i) => ({ b, i, x: 110 + ((i * 137) % 500), y: 960 + ((i * 89) % 80) }))
       .sort((a, z) => a.y - z.y)
       .forEach(({ b, i, x, y }) => {
-        const size = 96 + (y - 860) * 0.15;
+        const size = 90 + (y - 960) * 0.2;
         this.add.ellipse(x, y + size * 0.42, size * 0.7, size * 0.16, C.inkN, 0.12);
         const cat = sittingCat(this, b, x, y, size);
         if (i % 2) cat.setScale(-cat.scaleX, cat.scaleY);
-        if (i % 3 === 0) {
-          const z = art(this, 'sleep_zzz', x + size * 0.35, y - size * 0.45, 40, 40);
-          if (z) this.tweens.add({ targets: z, y: '-=8', alpha: 0.4, duration: 1100, yoyo: true, repeat: -1 });
-        }
         this.tweens.add({ targets: cat, scaleY: cat.scaleY * 1.03, duration: 1400 + i * 170, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
       });
   }

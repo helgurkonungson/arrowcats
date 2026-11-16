@@ -235,7 +235,7 @@ export function dialog(s: Phaser.Scene, lines: DialogLine[], hint: string, onDon
   const tag = s.add.graphics();
   const pg = s.add.graphics();
   const name = txt(s, 200, top, '', 32, '#ffffff').setOrigin(0, 0.5).setStroke(C.ink, 6);
-  const body = s.add.text(64, top + 110, '', {
+  const body = s.add.text(64, top + 150, '', {
     fontFamily: FONT, fontStyle: '800', fontSize: '31px', color: C.ink, wordWrap: { width: W - 120, useAdvancedWrap: true }, lineSpacing: 6,
   });
   const tip = txt(s, W / 2, H - 112, hint, 22, C.muted);

@@ -47,17 +47,20 @@ export function levelParams(n: number): GenParams {
   const tier = Math.max(0, n - 4);
   const hard = isHard(n);
   const saw = [0, 1, 2, -1][tier % 4];
+  // tuned 2026-11-16 after playtest "too easy": bigger boards sooner, denser, longer bent cats,
+  // and `tangle` makes each new cat block cats that are still free (few exits visible at a time)
   return {
-    w: clamp(5 + Math.floor(tier / 15), 5, 10),
-    h: clamp(6 + Math.floor(tier / 12), 6, 13),
-    fill: clamp(0.55 + tier * 0.004 + saw * 0.03 + (hard ? 0.08 : 0), 0.5, 0.92),
+    w: clamp(5 + Math.floor(tier / 8), 5, 10),
+    h: clamp(6 + Math.floor(tier / 6), 6, 14),
+    fill: clamp(0.68 + tier * 0.004 + saw * 0.03 + (hard ? 0.06 : 0), 0.6, 0.94),
     minLen: 2,
-    maxLen: clamp(3 + Math.floor(tier / 20), 3, 8),
-    turn: clamp(0.15 + tier * 0.003, 0.15, 0.45),
+    maxLen: clamp(4 + Math.floor(tier / 10), 4, 9),
+    turn: clamp(0.3 + tier * 0.004, 0.3, 0.55),
+    tangle: clamp(0.4 + tier * 0.03 + (hard ? 0.3 : 0), 0.4, 1),
     boxes: n >= 31 && n % 3 === 1 ? 1 + (n % 2) : 0,
     sleepy: n === 16 ? 0.3 : n > 16 ? 0.08 : 0,
     breeds: Array.from({ length: clamp(3 + Math.floor(n / 6), 3, COMMON) }, (_, i) => i),
-    depth: clamp(2 + Math.floor(tier / 10) + saw + (hard ? 2 : 0), 1, 12),
+    depth: clamp(3 + Math.floor(tier / 5) + saw + (hard ? 3 : 0), 2, 18),
   };
 }
 

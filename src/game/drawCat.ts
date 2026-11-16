@@ -75,7 +75,6 @@ export function drawCat(
     const c = pts[i];
     g.fillCircle((a.x + c.x) / 2 - w * 0.04, (a.y + c.y) / 2 - w * 0.04, w * 0.2);
   }
-  path(off(-w * 0.2, -w * 0.2), w * 0.14, light(b.body), 0.7);
 
   if (skipHead) return;
   // head
