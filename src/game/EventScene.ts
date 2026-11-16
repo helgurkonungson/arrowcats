@@ -1,3 +1,4 @@
+import { sittingCat } from './art';
 import Phaser from 'phaser';
 import { ACCESSORIES, eventAt, SEASON_WEEKS, TRACK, TROPHY_ICON, TROPHIES } from '../core/live';
 import { utcDate } from '../core/levels';
@@ -47,8 +48,7 @@ export class EventScene extends Phaser.Scene {
     });
 
     txt(this, W / 2, 1130, t('seasonTitle', { n: tracks }), 26);
-    const cg = this.add.graphics();
-    drawCat(cg, [{ x: 200, y: 1205 }, { x: 140, y: 1205 }], 11, 60, tracks >= SEASON_WEEKS ? 'happy' : 'sleep');
+    sittingCat(this, 11, 170, 1200, 110).setAlpha(tracks >= SEASON_WEEKS ? 1 : 0.6);
     txt(this, 420, 1205, t('seasonPrize'), 24, '#c08a00');
   }
 }

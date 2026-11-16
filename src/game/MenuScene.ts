@@ -8,7 +8,7 @@ import { t } from '../i18n';
 import { drawCat } from './drawCat';
 import { playMusic, setMuted, sfx } from './sfx';
 import { grant, persist, platform, save } from './state';
-import { art } from './art';
+import { art, artCat } from './art';
 import { DIM, badge, button, C, dialog, iconButton, modal, panel, pill, tile, toast, txt, W, H } from './ui';
 import { icon } from './icons';
 import { challenge, challengeOffered, markChallengeOffered } from './share';
@@ -44,9 +44,8 @@ export class MenuScene extends Phaser.Scene {
 
     // mascot on a soft floor shadow
     this.add.ellipse(W / 2, 452, 330, 46, C.inkN, 0.1);
-    const g = this.add.graphics();
     const pts = [[470, 380], [400, 380], [330, 380], [330, 440], [260, 440]].map(([x, y]) => ({ x, y }));
-    drawCat(g, pts, 0, 90, 'happy');
+    const g = artCat(this, pts, 0, 90, 'happy');
     this.tweens.add({ targets: g, y: -10, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
 
     const today = utcDate();

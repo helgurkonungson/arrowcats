@@ -6,7 +6,7 @@ import { TAG_ICON, tagOf, TROPHY_ICON, updateVisitor, VISITORS } from '../core/l
 import { BREEDS } from '../core/content';
 import { t } from '../i18n';
 import { drawCat } from './drawCat';
-import { art } from './art';
+import { art, sittingCat } from './art';
 import { playMusic, sfx } from './sfx';
 import { rewarded, rewardedReady } from './ads';
 import { addFish, persist, platform, save, unlockBreed } from './state';
@@ -236,8 +236,7 @@ export class CafeScene extends Phaser.Scene {
     const b = save.visit.visitor;
     if (b < 0) return;
     const vis = VISITORS.find((v) => v.breed === b)!;
-    const g = this.add.graphics();
-    drawCat(g, [{ x: 470, y: 715 }, { x: 420, y: 715 }, { x: 400, y: 735 }], b, 64, 'happy');
+    sittingCat(this, b, 440, 720, 120);
     const bell = txt(this, 470, 660, '🔔', 40);
     this.tweens.add({ targets: bell, angle: 15, duration: 300, yoyo: true, repeat: -1 });
     const zone = this.add.zone(440, 710, 160, 120).setInteractive({ useHandCursor: true });
@@ -266,17 +265,21 @@ export class CafeScene extends Phaser.Scene {
 
   private spawnCats() {
     const breeds = save.breeds.slice(0, 10);
-    breeds.forEach((b, i) => {
-      const g = this.add.graphics();
-      const x0 = 120 + ((i * 137) % 480);
-      const y0 = 720 + ((i * 89) % 330);
-      const flip = i % 2 ? 1 : -1;
-      drawCat(g, [{ x: x0 + 22 * flip, y: y0 }, { x: x0 - 22 * flip, y: y0 }], b, 56, i % 3 === 0 ? 'sleep' : 'happy');
-      this.tweens.add({
-        targets: g, x: (i % 2 ? 1 : -1) * (30 + (i * 13) % 50), duration: 2500 + i * 300,
-        yoyo: true, repeat: -1, ease: 'Sine.InOut',
+    // resident cats sit on the floor (back row first so nearer cats overlap them)
+    breeds
+      .map((b, i) => ({ b, i, x: 110 + ((i * 137) % 500), y: 850 + ((i * 89) % 140) }))
+      .sort((a, z) => a.y - z.y)
+      .forEach(({ b, i, x, y }) => {
+        const size = 96 + (y - 860) * 0.15;
+        this.add.ellipse(x, y + size * 0.42, size * 0.7, size * 0.16, C.inkN, 0.12);
+        const cat = sittingCat(this, b, x, y, size);
+        if (i % 2) cat.setScale(-cat.scaleX, cat.scaleY);
+        if (i % 3 === 0) {
+          const z = art(this, 'sleep_zzz', x + size * 0.35, y - size * 0.45, 40, 40);
+          if (z) this.tweens.add({ targets: z, y: '-=8', alpha: 0.4, duration: 1100, yoyo: true, repeat: -1 });
+        }
+        this.tweens.add({ targets: cat, scaleY: cat.scaleY * 1.03, duration: 1400 + i * 170, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
       });
-    });
   }
 
   private drawItem(g: Phaser.GameObjects.Graphics, key: string, r: Rect, col: number, room: number) {

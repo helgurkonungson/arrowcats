@@ -155,10 +155,6 @@ for stem, (folder, size) in SINGLES.items():
     f = SRC / f'{stem}.png'
     if f.exists():
         save(cut_sheet(f, 1, 1)[0], folder, stem, size)
-# the cleaned-up vector logo export (transparent) beats the generated one
-vec = SRC / 'Logo' / 'kittangle-logo.png'
-if vec.exists():
-    save(Image.open(vec).convert('RGBA'), 'ui', 'logo', 640)
 
 for folder, (size, cut) in RULES.items():
     for f in sorted((SRC / folder).glob('*.png')):
