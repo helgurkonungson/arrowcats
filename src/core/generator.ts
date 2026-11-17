@@ -1,10 +1,10 @@
 import { mulberry32, randInt, shuffle } from './rng';
-import { metrics } from './solver';
+import { fixSleepers, metrics } from './solver';
 import { Cat, Cell, Dir, DX, DY, Level } from './types';
 
 /** share of the board the chain itself fills when maxFree is set (sweep 2026-11-16: 0.6 → 88% levels
  *  meet the limit, ~86% fill after tail growth; 1.0 → none meet it) */
-const FILL_K = 0.6;
+const FILL_K = 0.5;
 
 export interface GenParams {
   w: number;
@@ -130,6 +130,19 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
     }
     return out;
   };
+  /** Adds the cat: marks its cells, blocks the cats whose lanes it crosses, registers its own lane. */
+  const place = (made: { cells: Cell[]; lane: number[] }, sleepy: boolean) => {
+    const cid = cats.length;
+    freeNow += 1 - blocksFree(made.cells);
+    for (const c of made.cells) {
+      const k = idx(c.x, c.y);
+      occ[k] = cid;
+      for (const o of laneOf.get(k) ?? []) blocked[o] = (blocked[o] ?? 0) + 1;
+    }
+    blocked[cid] = 0;
+    for (const k of made.lane) laneOf.set(k, [...(laneOf.get(k) ?? []), cid]);
+    cats.push({ id: cid, cells: made.cells, breed: p.breeds[Math.floor(r() * p.breeds.length)], sleepy });
+  };
   const tries = Math.max(1, Math.round(1 + (p.tangle ?? 0) * 11)) + (K < 99 ? 40 : 0);
   while (filled < target && fails < 1500) {
     let made: { cells: Cell[]; lane: number[] } | null = null;
@@ -162,26 +175,14 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
       if (!made) fails++;
       continue;
     }
-    const cid = cats.length;
-    freeNow += 1 - blocksFree(made.cells);
-    for (const c of made.cells) {
-      const k = idx(c.x, c.y);
-      occ[k] = cid;
-      for (const o of laneOf.get(k) ?? []) blocked[o] = (blocked[o] ?? 0) + 1;
-    }
-    blocked[cid] = 0;
-    for (const k of made.lane) laneOf.set(k, [...(laneOf.get(k) ?? []), cid]);
-    cats.push({
-      id: cid,
-      cells: made.cells,
-      breed: p.breeds[Math.floor(r() * p.breeds.length)],
-      sleepy: made.cells.length >= 3 && r() < p.sleepy,
-    });
+    place(made, made.cells.length >= 3 && r() < p.sleepy);
     filled += made.cells.length;
   }
   fillGaps();
   if (p.rare !== undefined && cats.length) cats[Math.floor(r() * cats.length)].breed = p.rare;
-  return { id, w, h, cats, boxes };
+  const level: Level = { id, w, h, cats, boxes };
+  fixSleepers(level);
+  return level;
 
   /**
    * Leaves no empty cells (playtest: holes look unfinished). Keeps solvability: removal order is the
@@ -190,7 +191,7 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
    * drop short new cats whose way out is already clear (they leave first); leftovers become boxes.
    */
   function fillGaps() {
-    const maxLen = p.maxFree ? Math.min(p.maxLen + 8, 14) : p.maxLen + 4;
+    const maxLen = Math.min(p.maxLen + 3, 8); // short cats: late levels hold 40+ of them
     const canTake = (k: number, owner: number) => (laneOf.get(k) ?? []).every((b) => b < owner);
     for (let round = 0; round < 40; round++) {
       let changed = false;
@@ -221,15 +222,7 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
         if (!made) continue;
         const bf = blocksFree(made.cells);
         if (freeNow - bf + 1 > Math.max(K, freeNow)) continue; // would show too many moves at once: leave the hole
-        const cid = cats.length;
-        freeNow += 1 - bf;
-        for (const c of made.cells) {
-          occ[idx(c.x, c.y)] = cid;
-          for (const o of laneOf.get(idx(c.x, c.y)) ?? []) blocked[o] = (blocked[o] ?? 0) + 1;
-        }
-        blocked[cid] = 0;
-        for (const l of made.lane) laneOf.set(l, [...(laneOf.get(l) ?? []), cid]);
-        cats.push({ id: cid, cells: made.cells, breed: p.breeds[Math.floor(r() * p.breeds.length)], sleepy: false });
+        place(made, false);
         changed = true;
       }
       if (!changed) break;
@@ -247,18 +240,18 @@ export function generateOnce(seed: number, p: GenParams, id: string): Level {
 export function generateLevel(seed: number, p: GenParams, id: string): Level {
   let best: Level | null = null;
   let bestScore = -Infinity;
-  const n = 10;
+  const n = 6;
   for (let i = 0; i < n; i++) {
     const lv = generateOnce(seed + i * 7919, p, id);
     const m = metrics(lv);
     if (!m.solvable || m.cats < 2) continue;
     const over = p.maxFree ? Math.max(0, m.peak - p.maxFree) : 0;
-    const score = -over * 100 - Math.abs(m.depth - p.depth) * 10 + m.fill * 5 - m.narrow * 0.5 - (m.first / m.cats) * 20;
+    const score = -over * 100 - Math.abs(m.depth - p.depth) * 10 + m.fill * 40 - m.narrow * 0.5 - (m.first / m.cats) * 20;
     if (score > bestScore) {
       bestScore = score;
       best = lv;
     }
-    if (p.maxFree && !over && Math.abs(m.depth - p.depth) <= 3 && m.fill > 0.85) break; // good enough
+    if (p.maxFree && !over && m.fill > 0.78) break; // good enough
   }
   return best ?? generateOnce(seed, p, id);
 }

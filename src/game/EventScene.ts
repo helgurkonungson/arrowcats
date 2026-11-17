@@ -5,9 +5,8 @@ import { ACCESSORIES, eventAt, SEASON_WEEKS, TRACK, TROPHY_ICON, TROPHIES } from
 import { utcDate } from '../core/levels';
 import { rewardText } from '../core/retention';
 import { t } from '../i18n';
-import { drawCat } from './drawCat';
 import { save } from './state';
-import { button, C, txt, W, backButton, panel } from './ui';
+import { C, txt, W, backButton, panel } from './ui';
 
 /** Weekly event track + season progress. Rewards are paid automatically when paws reach a step. */
 export class EventScene extends Phaser.Scene {

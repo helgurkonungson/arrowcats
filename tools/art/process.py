@@ -37,7 +37,9 @@ FRAMES = {
     'bg_board_floor': ('backgrounds', 9 / 16, 720, 0.5), 'bg_board_roof': ('backgrounds', 9 / 16, 720, 0.5),
     'bg_board_kitchen': ('backgrounds', 9 / 16, 720, 0.35), 'bg_board_garden': ('backgrounds', 9 / 16, 720, 0.5),
     'bg_menu': ('backgrounds', 9 / 16, 720, 0.5), 'bg_album': ('backgrounds', 9 / 16, 720, 0.5),
+    'bg_board_nursery': ('backgrounds', 9 / 16, 720, 0.5), 'bg_board_winter': ('backgrounds', 9 / 16, 720, 0.5),
     'cafe_room1': ('backgrounds', 3 / 4, 720, 0.5), 'cafe_room2': ('backgrounds', 3 / 4, 720, 0.5),
+    'cafe_room3': ('backgrounds', 3 / 4, 720, 0.5), 'cafe_room4': ('backgrounds', 3 / 4, 720, 0.5),
     'chapter1_cover': ('story', 4 / 3, 720, 0.5), 'chapter2_cover': ('story', 4 / 3, 720, 0.5),
 }
 

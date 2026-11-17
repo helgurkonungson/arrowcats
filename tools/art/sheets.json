@@ -397,5 +397,87 @@
    "heads/head_bengal_sleep",
    "heads/head_golden_sleep"
   ]
+ },
+ "U08": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "cafe/decor_r3_window_0",
+   "cafe/decor_r3_window_1",
+   "cafe/decor_r3_window_2",
+   "cafe/decor_r3_lamp_0",
+   "cafe/decor_r3_lamp_1",
+   "cafe/decor_r3_lamp_2",
+   "cafe/decor_r3_post_0",
+   "cafe/decor_r3_post_1",
+   "cafe/decor_r3_post_2"
+  ]
+ },
+ "U09": {
+  "rows": 2,
+  "cols": 3,
+  "names": [
+   "cafe/decor_r3_sofa_0",
+   "cafe/decor_r3_sofa_1",
+   "cafe/decor_r3_sofa_2",
+   "cafe/decor_r3_counter_0",
+   "cafe/decor_r3_counter_1",
+   "cafe/decor_r3_counter_2"
+  ]
+ },
+ "U10": {
+  "rows": 1,
+  "cols": 3,
+  "names": [
+   "story/resident_mila_calm",
+   "story/resident_mila_happy",
+   "ui/icon_bond"
+  ]
+ },
+ "V01": {
+  "rows": 2,
+  "cols": 2,
+  "names": [
+   "obstacles/yarn_0",
+   "obstacles/yarn_1",
+   "obstacles/yarn_2",
+   "ui/icon_yarn"
+  ]
+ },
+ "V02": {
+  "rows": 3,
+  "cols": 3,
+  "names": [
+   "cafe/decor_r4_window_0",
+   "cafe/decor_r4_window_1",
+   "cafe/decor_r4_window_2",
+   "cafe/decor_r4_lamp_0",
+   "cafe/decor_r4_lamp_1",
+   "cafe/decor_r4_lamp_2",
+   "cafe/decor_r4_post_0",
+   "cafe/decor_r4_post_1",
+   "cafe/decor_r4_post_2"
+  ]
+ },
+ "V03": {
+  "rows": 2,
+  "cols": 3,
+  "names": [
+   "cafe/decor_r4_sofa_0",
+   "cafe/decor_r4_sofa_1",
+   "cafe/decor_r4_sofa_2",
+   "cafe/decor_r4_counter_0",
+   "cafe/decor_r4_counter_1",
+   "cafe/decor_r4_counter_2"
+  ]
+ },
+ "V04": {
+  "rows": 1,
+  "cols": 3,
+  "names": [
+   "story/resident_pryazhka_calm",
+   "story/resident_pryazhka_ashamed",
+   "story/resident_pryazhka_happy"
+  ]
  }
 }

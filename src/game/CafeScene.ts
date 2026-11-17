@@ -6,12 +6,11 @@ import { comfort, tipsAvailable, tipsRate } from '../core/retention';
 import { TAG_ICON, tagOf, TROPHY_ICON, updateVisitor, VISITORS } from '../core/live';
 import { BREEDS } from '../core/content';
 import { t } from '../i18n';
-import { drawCat } from './drawCat';
 import { art, sittingCat } from './art';
 import { playMusic, sfx } from './sfx';
 import { rewarded, rewardedReady } from './ads';
 import { addFish, grantPaws, persist, platform, save, unlockBreed } from './state';
-import { button, C, dialog, iconButton, modal, pill, toast, txt, W, backButton, panel } from './ui';
+import { button, C, dialog, modal, pill, toast, txt, W, backButton, panel } from './ui';
 
 import { CAFE_UI, FLOOR_SLOTS, type Rect, SLOT_HIT, SLOT_RECT } from './cafeLayout';
 
@@ -155,7 +154,7 @@ export class CafeScene extends Phaser.Scene {
             collect(ok ? n * 2 : n);
           },
         },
-      ]);
+      ], true);
     }, { color: C.primary, size: 28, disabled: tips <= 0 });
   }
 
@@ -284,7 +283,7 @@ export class CafeScene extends Phaser.Scene {
           close();
           this.scene.restart({ room: r });
         },
-      })));
+      })), true);
   }
 
   /** Guests appear after 2+ hours away if the café has the tags they like. */
@@ -318,7 +317,7 @@ export class CafeScene extends Phaser.Scene {
           },
         },
         { label: t('visitorLater'), color: C.gray, onClick: () => close() },
-      ]);
+      ], true);
     });
   }
 

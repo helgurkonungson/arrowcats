@@ -6,7 +6,6 @@ import { prevDate } from '../core/save';
 import { eventAt, updateVisitor } from '../core/live';
 import { DAILY_FROM_LEVEL } from '../core/tutorial';
 import { t } from '../i18n';
-import { drawCat } from './drawCat';
 import { playMusic, setMuted, sfx } from './sfx';
 import { grant, persist, platform, save } from './state';
 import { art, artCat } from './art';
@@ -138,7 +137,7 @@ export class MenuScene extends Phaser.Scene {
     const close = modal(this, t('challengeTitle'), [ch.date === today ? t('challengeText', { t: fmtTime(ch.time) }) : t('challengeTextOld')], [
       { label: t('challengeAccept'), color: C.primary, onClick: () => { close(); this.scene.start('Level', { mode: 'daily', date: today }); } },
       { label: t('visitorLater'), color: C.gray, onClick: () => close() },
-    ]);
+    ], true);
   }
 
   /** 7 cells, claimed ones ticked, today's highlighted, tomorrow's reward spelled out. */

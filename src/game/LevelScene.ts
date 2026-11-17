@@ -3,7 +3,7 @@ import { Board } from '../core/board';
 import {
   COMBO_BONUS_MAX, COMBO_WINDOW_MS, COST, DAILY_REWARD, DAILY_STREAK_BONUS, FISH_PER_CAT, levelReward, BREEDS,
 } from '../core/content';
-import { dailyNumber, getDaily, getLevel, TUTORIAL_COUNT } from '../core/levels';
+import { dailyNumber, getDaily, getLevel } from '../core/levels';
 import { prevDate } from '../core/save';
 import { Cat, Cell, DX, DY, Level } from '../core/types';
 import { headDir } from '../core/board';
@@ -19,6 +19,7 @@ import { playMusic, sfx } from './sfx';
 import { betweenLevels, continueOffered, markContinue, rewarded, rewardedReady } from './ads';
 import { addFish, grantPaws, persist, platform, save, unlockBreed } from './state';
 import { PAWS } from '../core/live';
+import { boardBackground } from './boardTheme';
 import { button, C, fishLabel, H, modal, toast, txt, W, backButton } from './ui';
 import { icon, iconKey, IconName } from './icons';
 import { fmtTime, Tap } from '../core/share';
@@ -57,6 +58,7 @@ export class LevelScene extends Phaser.Scene {
   private oy = 0;
   private feedArmed = false;
   /** hands-on lesson in progress: only the named action is allowed, and it is free */
+  private sleepToast = false;
   private lesson: '' | 'hint' | 'hintTap' | 'feed' | 'feedTap' | 'sleepy' = '';
   private lessonCat = -1;
   private lessonMark?: Phaser.GameObjects.GameObject[];
@@ -146,6 +148,8 @@ export class LevelScene extends Phaser.Scene {
     }
     if (new URLSearchParams(location.search).has('debug')) this.exposeDebug();
     this.startTime = this.time.now;
+    // generating the next big board takes ~100–300 ms: do it while the player is busy thinking
+    if (d.mode === 'level') this.time.delayedCall(2500, () => getLevel(d.n + 1));
     // each mechanic is explained once, when it first shows up (core/tutorial.ts)
     const tips = levelTips({
       mode: d.mode, n: d.mode === 'level' ? d.n : 0, hard: !!this.level.hard,
@@ -174,8 +178,7 @@ export class LevelScene extends Phaser.Scene {
 
   private drawField() {
     const { w, h } = this.level;
-    const room = CHAPTERS[Math.min(progress(save.tasksDone).chapter, CHAPTERS.length - 1)].room;
-    art(this, room === 0 ? 'bg_board_floor' : 'bg_board_roof', W / 2, H / 2, W, H, true);
+    art(this, boardBackground(this.d.mode === 'level' ? this.d.n : dailyNumber(this.d.date)), W / 2, H / 2, W, H, true);
     const g = this.add.graphics();
     // board: one calm mid-light surface with a soft checker so lanes read at a glance
     const bx = this.ox - 16;
@@ -325,7 +328,9 @@ export class LevelScene extends Phaser.Scene {
   private startLesson(k: 'hint' | 'feed' | 'sleepy') {
     if (this.ended) return;
     if (k === 'sleepy') {
-      const v = [...this.views.values()].find((x) => !x.awake);
+      const sleeper = [...this.views.values()].find((x) => !x.awake);
+      const nid = sleeper && this.board.neighbours(sleeper.cat.id).find((id) => this.board.freeCats().includes(id));
+      const v = nid === undefined ? undefined : this.views.get(nid);
       if (!v) return;
       this.lesson = 'sleepy';
       this.lessonCat = v.cat.id;
@@ -464,12 +469,14 @@ export class LevelScene extends Phaser.Scene {
       return;
     }
     if (!v.awake) {
-      v.awake = true;
-      v.mood = 'calm';
-      v.zz?.destroy();
-      this.redraw(v);
-      sfx.wake();
-      this.tweens.add({ targets: v.g, y: -6, duration: 90, yoyo: true });
+      // asleep: it wakes when a neighbour cat leaves; tapping only makes it snore (no heart lost)
+      this.tweens.add({ targets: [v.g, v.zz].filter(Boolean), x: 4, duration: 45, yoyo: true, repeat: 2 });
+      if (v.zz) this.tweens.add({ targets: v.zz, scale: 1.4, duration: 150, yoyo: true });
+      if (!this.sleepToast) {
+        this.sleepToast = true;
+        toast(this, t('sleepNote'), 1000);
+        this.time.delayedCall(2500, () => (this.sleepToast = false));
+      }
       return;
     }
     const res = this.board.check(id);
@@ -481,7 +488,7 @@ export class LevelScene extends Phaser.Scene {
     if (v.cat.id === this.lessonCat) this.endLesson();
     this.taps.push('exit');
     const cat = v.cat;
-    this.board.remove(cat.id);
+    this.wakeUp(this.board.remove(cat.id));
     v.busy = true;
     v.mood = 'happy';
     v.hint = false;
@@ -560,9 +567,23 @@ export class LevelScene extends Phaser.Scene {
     if (bv) this.tweens.add({ targets: bv.g, x: 5, duration: 50, yoyo: true, repeat: 3 });
   }
 
+  /** Sleepy cats whose neighbour just left wake up. */
+  private wakeUp(ids: number[]) {
+    for (const id of ids) {
+      const w = this.views.get(id);
+      if (!w || w.awake) continue;
+      w.awake = true;
+      w.mood = 'calm';
+      w.zz?.destroy();
+      this.redraw(w);
+      sfx.wake();
+      this.tweens.add({ targets: w.g, y: -8, duration: 110, yoyo: true, repeat: 1 });
+    }
+  }
+
   private feed(v: CatView) {
     this.taps.push('feed');
-    this.board.remove(v.cat.id);
+    this.wakeUp(this.board.remove(v.cat.id));
     v.busy = true;
     v.mood = 'happy';
     this.redraw(v);

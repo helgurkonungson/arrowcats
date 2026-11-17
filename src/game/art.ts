@@ -4,6 +4,9 @@ import { drawCat, type Mood } from './drawCat';
 import { bakeIcons } from './icons';
 
 const BASE = `${import.meta.env.BASE_URL}art/`;
+/** Art for content that is not in the game yet (update 1 nursery/kittens/new breeds, update 2 winter house/yarn):
+ *  imported and shipped in public/art, but not loaded until its feature is wired (first-load budget < 5 MB). */
+const LATER = /^(kitten_|decor_r[34]_|yarn_|resident_(mila|pryazhka)|icon_(bond|yarn)|(head|tail|portrait)_(scottish|tuxedo)|cafe_room[34]$)/;
 
 /** Loads generated art listed in public/art/manifest.json ({ key: "folder/file.png" }); none is fine. */
 export class PreloadScene extends Phaser.Scene {
@@ -18,7 +21,7 @@ export class PreloadScene extends Phaser.Scene {
   create() {
     bakeIcons(this);
     const m = (this.cache.json.get('art_manifest') ?? {}) as Record<string, string>;
-    const keys = Object.keys(m);
+    const keys = Object.keys(m).filter((k) => !LATER.test(k));
     if (!keys.length) return this.scene.start('Menu');
     for (const k of keys) this.load.image(k, BASE + m[k]);
     this.load.once('complete', () => this.scene.start('Menu'));

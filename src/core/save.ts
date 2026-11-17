@@ -7,7 +7,7 @@ export interface DailyResult {
 }
 
 export interface SaveData {
-  v: 5;
+  v: 6;
   visit: { visitor: number; until: number; lastSeen: number };
   setsClaimed: string[];
   accessories: string[];
@@ -57,11 +57,11 @@ export interface SaveData {
   purchases: string[];
 }
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 export function defaultSave(): SaveData {
   return {
-    v: 5,
+    v: 6,
     visit: { visitor: -1, until: 0, lastSeen: 0 },
     setsClaimed: [],
     accessories: [],
@@ -101,9 +101,9 @@ export function migrate(raw: unknown): SaveData {
   const base = defaultSave();
   if (!raw || typeof raw !== 'object') return base;
   const s = raw as Omit<Partial<SaveData>, 'v'> & { v?: number };
-  // v5 (2026-11-16, before release): levels, economy and tutorial changed too much, testers start over.
+  // v6 (2026-11-17, before release): cat count/board size, sleepy rule and art changed, testers start over.
   // Purchases are kept. After release never wipe: migrate instead.
-  if ((s.v ?? 0) < 5) return { ...base, noAds: !!s.noAds, purchases: [...(s.purchases ?? [])] };
+  if ((s.v ?? 0) < 6) return { ...base, noAds: !!s.noAds, purchases: [...(s.purchases ?? [])] };
   const cafe = base.cafe.map((room, r) => room.map((v, i) => s.cafe?.[r]?.[i] ?? v));
   const tasksDone = s.tasksDone ?? [];
   const cafeTier = tiersFromTasks(tasksDone, CAFE_ROOMS, CAFE_SLOTS.length);
@@ -113,7 +113,7 @@ export function migrate(raw: unknown): SaveData {
   return {
     ...base,
     ...s,
-    v: 5,
+    v: 6,
     tasksDone,
     visit: { ...base.visit, ...(s.visit ?? {}) },
     event: { ...base.event, ...(s.event ?? {}) },

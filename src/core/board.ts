@@ -26,6 +26,8 @@ export class Board {
   readonly h: number;
   readonly grid: Int32Array;
   readonly cats = new Map<number, Cat>();
+  /** sleepy cats that cannot leave yet: they wake when a cat next to them leaves */
+  asleep = new Set<number>();
 
   constructor(level: Level) {
     this.w = level.w;
@@ -35,6 +37,7 @@ export class Board {
     for (const c of level.cats) {
       const copy: Cat = { ...c, cells: c.cells.map((p) => ({ ...p })) };
       this.cats.set(c.id, copy);
+      if (c.sleepy) this.asleep.add(c.id);
       for (const p of copy.cells) this.grid[p.y * this.w + p.x] = c.id;
     }
   }
@@ -63,15 +66,36 @@ export class Board {
     return { free: true, steps, blocker: EMPTY };
   }
 
-  remove(id: number) {
+  /** Removes a cat; returns the sleepy cats that woke up because it was their neighbour. */
+  remove(id: number): number[] {
     const c = this.cats.get(id);
-    if (!c) return;
+    if (!c) return [];
     for (const p of c.cells) this.grid[p.y * this.w + p.x] = EMPTY;
     this.cats.delete(id);
+    this.asleep.delete(id);
+    const woke: number[] = [];
+    for (const p of c.cells)
+      for (let d = 0; d < 4; d++) {
+        const o = this.at(p.x + DX[d], p.y + DY[d]);
+        if (o >= 0 && this.asleep.delete(o)) woke.push(o);
+      }
+    return woke;
   }
 
+  /** Cats sharing a cell edge with this one. */
+  neighbours(id: number): number[] {
+    const out = new Set<number>();
+    for (const p of this.cats.get(id)?.cells ?? [])
+      for (let d = 0; d < 4; d++) {
+        const o = this.at(p.x + DX[d], p.y + DY[d]);
+        if (o >= 0 && o !== id) out.add(o);
+      }
+    return [...out];
+  }
+
+  /** Cats that can leave right now: clear way out and awake. */
   freeCats(): number[] {
-    return [...this.cats.keys()].filter((id) => this.check(id).free);
+    return [...this.cats.keys()].filter((id) => !this.asleep.has(id) && this.check(id).free);
   }
 
   get count() {

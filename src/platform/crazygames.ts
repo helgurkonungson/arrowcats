@@ -1,4 +1,3 @@
-import type { IPlatform } from './IPlatform';
 import { KEY, LocalPlatform } from './local';
 
 /* Minimal typing of the CrazyGames HTML5 SDK v3 (script tag in index.html, see vite.config.ts). */

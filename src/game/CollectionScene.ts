@@ -112,8 +112,7 @@ export class CollectionScene extends Phaser.Scene {
         },
       },
       { label: t('chooseAccessory'), color: C.blue, onClick: () => { close(); this.pickAccessory(b); } },
-      { label: '✕', color: C.gray, onClick: () => close() },
-    ]);
+    ], true);
   }
 
   private pickAccessory(b: number) {
@@ -138,6 +137,6 @@ export class CollectionScene extends Phaser.Scene {
           this.scene.restart();
         },
       },
-    ]);
+    ], true);
   }
 }

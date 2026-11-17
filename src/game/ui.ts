@@ -168,15 +168,25 @@ function scrim(s: Phaser.Scene, alpha = 0.55) {
   return dim;
 }
 
-/** Full-screen modal; returns close(). Buttons do not close it automatically. */
-export function modal(s: Phaser.Scene, title: string, lines: string[], buttons: ModalBtn[]) {
+/**
+ * Full-screen modal; returns close(). Buttons do not close it automatically.
+ * `closable` adds a ✕ in the corner and closes on a tap anywhere outside the window.
+ */
+export function modal(s: Phaser.Scene, title: string, lines: string[], buttons: ModalBtn[], closable = false) {
   const c = s.add.container(0, 0).setDepth(100);
   const dim = scrim(s);
+  const close = () => c.destroy();
+  const box = { y: 0, h: 0 };
+  if (closable)
+    dim.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.y < box.y || p.y > box.y + box.h || p.x < 60 || p.x > W - 60) close();
+    });
   const ph0 = 190 + lines.length * 52 + buttons.length * 118;
   let top = H / 2 - ph0 / 2;
   const g = s.add.graphics();
   const tt = txt(s, W / 2, 0, title, 46);
-  if (tt.width > W - 180) tt.setScale((W - 180) / tt.width);
+  const maxTitle = closable ? W - 260 : W - 180;
+  if (tt.width > maxTitle) tt.setScale(maxTitle / tt.width);
   c.add([dim, g, tt]);
   // lines may wrap: stack them by their real height
   const texts = lines.map((l) => txt(s, W / 2, 0, l, 32).setWordWrapWidth(W - 180, true).setOrigin(0.5, 0));
@@ -191,6 +201,17 @@ export function modal(s: Phaser.Scene, title: string, lines: string[], buttons: 
   g.fillStyle(C.latte, 1).fillRoundedRect(63, top + 3, W - 126, 104, { tl: 37, tr: 37, bl: 0, br: 0 });
   g.lineStyle(3, 0xe2c7a4, 1).lineBetween(64, top + 107, W - 64, top + 107);
   tt.y = top + 56;
+  box.y = top;
+  box.h = ph;
+  if (closable) {
+    const x = s.add.container(W - 84, top + 56);
+    const xg = s.add.graphics();
+    xg.fillStyle(C.coral, 1).fillCircle(0, 0, 30).lineStyle(4, C.inkN, 1).strokeCircle(0, 0, 30);
+    const xt = txt(s, 0, -2, '✕', 30, '#ffffff');
+    x.add([xg, xt]).setSize(76, 76).setInteractive({ useHandCursor: true });
+    x.on('pointerdown', (_p: unknown, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => { ev.stopPropagation(); close(); });
+    c.add(x);
+  }
   buttons.forEach((b, i) =>
     c.add(button(s, W / 2, by + i * 118, 460, i === 0 ? 96 : 84, b.label, b.onClick, {
       color: b.color, disabled: b.disabled, size: i === 0 ? 36 : 32,
@@ -198,7 +219,7 @@ export function modal(s: Phaser.Scene, title: string, lines: string[], buttons: 
   );
   c.setScale(0.9).setAlpha(0);
   s.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 180, ease: 'Back.Out' });
-  return () => c.destroy();
+  return close;
 }
 
 /** Currency capsule: icon overlapping the left end, value right-aligned. Right edge at x. */

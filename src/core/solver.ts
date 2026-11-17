@@ -14,6 +14,27 @@ export function solve(level: Level) {
   return { solvable: true, waves };
 }
 
+/**
+ * A sleepy cat wakes only when a neighbour leaves, so a random sleeper can end up never waking.
+ * Wakes (un-sleeps) the sleepers that block the greedy run; keeps every generated level solvable.
+ */
+export function fixSleepers(level: Level) {
+  const b = new Board(level);
+  while (b.count) {
+    const free = b.freeCats();
+    if (free.length) {
+      free.forEach((id) => b.remove(id));
+      continue;
+    }
+    const stuck = [...b.asleep].filter((id) => b.check(id).free);
+    if (!stuck.length) return;
+    for (const id of stuck) {
+      b.asleep.delete(id);
+      level.cats.find((c) => c.id === id)!.sleepy = false;
+    }
+  }
+}
+
 export function metrics(level: Level) {
   const s = solve(level);
   const cells = level.cats.reduce((n, c) => n + c.cells.length, 0);
@@ -46,9 +67,11 @@ export function peakFree(level: Level) {
     let bestN = -1;
     for (const id of free) {
       const c = b.cats.get(id)!;
+      const sleeping = new Set(b.asleep);
       b.remove(id);
       const n = b.freeCats().length;
       b.cats.set(id, c);
+      b.asleep = sleeping;
       for (const p of c.cells) b.grid[p.y * b.w + p.x] = id;
       if (n > bestN) {
         bestN = n;

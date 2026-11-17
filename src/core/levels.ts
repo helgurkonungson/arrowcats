@@ -1,10 +1,10 @@
 import { GenParams, generateLevel } from './generator';
 import { Board } from './board';
+import { solve } from './solver';
 import { hashStr } from './rng';
 import { Cat, Level } from './types';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-const COMMON = 8;
 const RARE_FIRST = 8;
 
 type Raw = [number, number][];
@@ -54,39 +54,46 @@ export const breedsAt = (n: number) => BREED_AT.map((at, b) => (at <= n ? b : -1
 /** Lesson levels (one mechanic per level, core/tutorial.ts). */
 export const LESSON = { fewFree: 3, hint: 4, sleepy: 5, feed: 6, boxes: 9 } as const;
 
-/** Sleepy lesson: exactly one sleepy cat, and it is a cat that can leave right away. */
+/**
+ * Sleepy lesson: exactly one sleepy cat, next to a cat that can leave right away (that cat wakes it).
+ * Prefers a sleeper that can itself leave once awake; the level must stay solvable.
+ */
 function makeSleepyLesson(lv: Level) {
   for (const c of lv.cats) c.sleepy = false;
-  const id = new Board(lv).freeCats()[0];
-  const c = lv.cats.find((x) => x.id === id);
-  if (c) c.sleepy = true;
+  const b = new Board(lv);
+  const pairs = b.freeCats().flatMap((n) => b.neighbours(n).map((s) => [n, s] as const));
+  pairs.sort((a, z) => Number(b.check(z[1]).free) - Number(b.check(a[1]).free));
+  for (const [, s] of pairs) {
+    const cat = lv.cats.find((x) => x.id === s)!;
+    cat.sleepy = true;
+    if (solve(lv).solvable) return;
+    cat.sleepy = false;
+  }
 }
 
 export function levelParams(n: number): GenParams {
   const tier = Math.max(0, n - 4);
   const hard = isHard(n);
   const saw = [0, 1, 2, -1][tier % 4];
-  // tuned 2026-11-16 after playtest "too easy": bigger boards sooner, denser, longer bent cats,
-  // and `tangle` makes each new cat block cats that are still free (few exits visible at a time)
-  // 2026-11-16 (2nd playtest): arrows games go big fast once the rules are learned – about 10×11 by
-  // level 10 and the full 11×14 by level ~14; later levels breathe with the saw (−1 column) and get
-  // harder through tangle and depth. 11×14 still gives ~61 px cells on the 720-wide screen.
-  // 2026-11-16 (4th playtest): difficulty grows even faster – 11×14 and the 1-cat chain from level 11
-  // (levels 4–6 are the booster/sleepy lessons and keep 3 free cats)
+  // Design (2026-11-17 analysis of Arrows/Tap-Away clones): the base rule has no real decisions (removing a
+  // cat never hurts), so difficulty is visual search. It grows with the NUMBER of cats: boards grow to
+  // 13×17 and cats get short (2–6 cells), so late levels hold 40–60 cats instead of 12–19. Hearts and
+  // hints start to matter because a blocked cat is no longer obvious at a glance.
+  // Earlier ramp notes: 11×14 and the chain by level ~11; breathers (saw < 0) are one column / two rows smaller.
   const breath = saw < 0 && tier > 8 ? 1 : 0;
   return {
-    w: clamp(8 + Math.floor(tier * 0.6) - breath, 6, 11),
-    h: clamp(9 + Math.floor(tier * 0.8) - 2 * breath, 8, 14),
+    w: clamp(8 + Math.floor(tier * 0.6) - breath, 6, 13),
+    h: clamp(9 + Math.floor(tier * 0.8) - 2 * breath, 8, 17),
     fill: clamp(0.7 + tier * 0.006 + saw * 0.03 + (hard ? 0.06 : 0), 0.6, 0.94),
     minLen: 2,
-    maxLen: clamp(4 + Math.floor(tier / 8), 4, 9),
+    maxLen: clamp(5 - Math.floor(tier / 6), 3, 5),
     turn: clamp(0.3 + tier * 0.006, 0.3, 0.55),
     tangle: clamp(0.5 + tier * 0.06 + (hard ? 0.3 : 0), 0.5, 1),
     // mechanics arrive with their lessons (core/tutorial.ts): sleepy cats at 5, boxes at 9
     boxes: n === LESSON.boxes ? 2 : n > LESSON.boxes && n % 3 === 0 ? 1 + (n % 2) : 0,
-    sleepy: n > LESSON.sleepy + 1 ? 0.06 : 0,
+    sleepy: n > LESSON.sleepy + 1 ? clamp(0.05 + tier * 0.002, 0.05, 0.12) : 0,
     breeds: breedsAt(n),
-    depth: clamp(3 + Math.floor(tier / 2) + saw + (hard ? 4 : 0), 2, 22),
+    depth: clamp(3 + tier + saw * 2 + (hard ? 8 : 0), 2, 60),
     // only a few cats may be free at once: 3 while learning, 2 on 7–10, then 1 (a chain where each
     // exit opens the next). Breathers allow one more, hard levels are strict.
     maxFree: hard ? 1 : clamp((tier < 3 ? 3 : tier < 7 ? 2 : 1) + (saw < 0 ? 1 : 0), 1, 3),
